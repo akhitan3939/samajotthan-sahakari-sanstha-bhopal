@@ -40,13 +40,14 @@ function MainApp() {
 
   // Admin Login Security Modal
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(true);
 
   // Modals State
   const [isMemberPortalOpen, setIsMemberPortalOpen] = useState(false);
   const [memberPortalInitialAccount, setMemberPortalInitialAccount] = useState('');
   const [isPassbookControlOpen, setIsPassbookControlOpen] = useState(false);
   const [isAddLoanOpen, setIsAddLoanOpen] = useState(false);
+  const [adminInitialStep, setAdminInitialStep] = useState<string | undefined>(undefined);
 
   // Front-page Passbook Search States
   const [frontSearchAccountNo, setFrontSearchAccountNo] = useState('');
@@ -77,6 +78,16 @@ function MainApp() {
 
   // Handlers
   const handleOpenAdmin = () => {
+    setAdminInitialStep('STEP0_DASHBOARD');
+    if (isAdminAuthenticated) {
+      setView('ADMIN');
+    } else {
+      setIsAdminLoginOpen(true);
+    }
+  };
+
+  const handleOpenPassbookAdmin = () => {
+    setAdminInitialStep('STEP_PASSBOOK_HUB');
     if (isAdminAuthenticated) {
       setView('ADMIN');
     } else {
@@ -163,6 +174,64 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff0f3] via-[#fff5f7] to-[#ffeef2] text-slate-900 flex flex-col font-sans">
+      {/* 🚀 QUICK VIEW SWITCHER BAR (ALWAYS VISIBLE AT TOP) */}
+      <div className="bg-slate-950 text-white px-3 sm:px-6 py-2 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs font-bold z-50">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          <span className="text-slate-300 hidden sm:inline">दृश्य (View):</span>
+          <div className="inline-flex rounded-xl p-0.5 bg-slate-900 border border-slate-700">
+            <button
+              onClick={() => setView('HOME')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                view === 'HOME'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              🌐 मुख्य वेबसाइट (Front Page)
+            </button>
+            <button
+              onClick={() => {
+                setAdminInitialStep('STEP_PASSBOOK_HUB');
+                setView('ADMIN');
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                view === 'ADMIN'
+                  ? 'bg-amber-400 text-slate-950 shadow-sm'
+                  : 'text-amber-300 hover:text-white'
+              }`}
+            >
+              <span>🏢 एडमिन बायां पैनल (Left Panel)</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-bold">
+                🎯 पासबुक
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {view === 'HOME' ? (
+            <button
+              onClick={() => {
+                setAdminInitialStep('STEP_PASSBOOK_HUB');
+                setView('ADMIN');
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white text-xs font-black shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Eye className="w-3.5 h-3.5 text-pink-200" />
+              <span>एडमिन बायां पैनल खोलें →</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setView('HOME')}
+              className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 cursor-pointer"
+            >
+              वेबसाइट फ्रंट पेज देखें ✕
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Top Navigation Bar */}
       <Navbar
         onOpenAdmin={handleOpenAdmin}
@@ -170,7 +239,7 @@ function MainApp() {
           setMemberPortalInitialAccount('');
           setIsMemberPortalOpen(true);
         }}
-        onOpenPassbookControl={() => setIsPassbookControlOpen(true)}
+        onOpenPassbookControl={handleOpenPassbookAdmin}
         onScrollToBoard={scrollToBoard}
         onScrollToAddress={scrollToAddress}
         onScrollToCalculator={scrollToCalculator}
@@ -179,7 +248,11 @@ function MainApp() {
       {/* Main Viewport */}
       {view === 'ADMIN' ? (
         <AdminPanel
-          onClose={() => setView('HOME')}
+          initialStep={adminInitialStep as any}
+          onClose={() => {
+            setView('HOME');
+            setAdminInitialStep(undefined);
+          }}
           onOpenAddLoan={() => setIsAddLoanOpen(true)}
           onOpenLedger={(loan) => setSelectedLedgerLoan(loan)}
           onOpenPaymentEntry={(loan, emiNo) => setPaymentTarget({ loan, emiNo })}
@@ -189,7 +262,10 @@ function MainApp() {
             setNoDuesNocLoan(loan || null);
             setIsNoDuesNocOpen(true);
           }}
-          onOpenPassbookControl={() => setIsPassbookControlOpen(true)}
+          onOpenPassbookControl={() => {
+            setAdminInitialStep('STEP_PASSBOOK_HUB');
+            setView('ADMIN');
+          }}
         />
       ) : (
         <main className="flex-1">
@@ -245,9 +321,9 @@ function MainApp() {
                         {enabledLoans.length} अधिकृत
                       </span>
                       <button
-                        onClick={() => setIsPassbookControlOpen(true)}
+                        onClick={handleOpenPassbookAdmin}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-200/90 hover:bg-rose-300 text-rose-950 font-black text-xs border border-rose-400 transition-all cursor-pointer shadow-xs"
-                        title="एक ही जगह से तय करें किसकी पासबुक दिखाना है"
+                        title="बाएं पैनल में तय करें किसकी पासबुक दिखाना है"
                       >
                         <Settings className="w-3.5 h-3.5 text-rose-800" />
                         <span>⚙️ पासबुक कंट्रोल</span>
@@ -263,7 +339,7 @@ function MainApp() {
                       </div>
                       <div className="text-xs">
                         <span className="font-black text-white block">
-                          🎯 पासबुक दृश्यता कंट्रोल (एक ही जगह से नियंत्रण)
+                          🎯 पासबुक दृश्यता कंट्रोल (एडमिन बायां पैनल)
                         </span>
                         <span className="text-[11px] text-rose-200/90">
                           तय करें कि वेबसाइट पर किसकी पासबुक दिखेगी और किसकी बंद रहेगी ({enabledLoans.length} चालू)
@@ -272,11 +348,11 @@ function MainApp() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setIsPassbookControlOpen(true)}
+                      onClick={handleOpenPassbookAdmin}
                       className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-black text-xs transition-all shadow-md cursor-pointer shrink-0 flex items-center justify-center gap-1.5"
                     >
                       <Eye className="w-3.5 h-3.5 text-emerald-200" />
-                      <span>कंट्रोल खोलें →</span>
+                      <span>बाएं पैनल में कंट्रोल खोलें →</span>
                     </button>
                   </div>
 
@@ -288,11 +364,11 @@ function MainApp() {
                       </p>
                       <button
                         type="button"
-                        onClick={() => setIsPassbookControlOpen(true)}
+                        onClick={handleOpenPassbookAdmin}
                         className="px-4 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-extrabold text-xs shadow-sm cursor-pointer inline-flex items-center gap-2"
                       >
                         <Eye className="w-4 h-4 text-pink-200" />
-                        <span>यहाँ क्लिक करके सदस्यों की पासबुक चालू करें</span>
+                        <span>बाएं पैनल में जाकर पासबुक चालू करें</span>
                       </button>
                     </div>
                   ) : (
@@ -617,6 +693,7 @@ function MainApp() {
               setIsMemberPortalOpen(true);
             }
           }}
+          onOpenAdminHub={handleOpenPassbookAdmin}
         />
       )}
     </div>

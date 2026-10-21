@@ -77,25 +77,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onOpenPassbookControl && (
             <button
               onClick={onOpenPassbookControl}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-black text-rose-950 bg-rose-200/90 hover:bg-rose-300 border-2 border-rose-400 rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
-              title="एक ही जगह से तय करें किसकी पासबुक वेबसाइट पर दिखेगी"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-black text-white bg-gradient-to-r from-rose-700 to-pink-700 hover:from-rose-800 hover:to-pink-800 rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer shadow-md"
+              title="बाएं पैनल में तय करें किसकी पासबुक वेबसाइट पर दिखेगी"
             >
-              <Settings className="w-3.5 h-3.5 text-rose-800" />
+              <Settings className="w-3.5 h-3.5 text-pink-200" />
               <span>🎯 पासबुक कंट्रोल</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-600 text-white font-extrabold">
-                {loans.filter((l) => l.passbookEnabled).length}
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-400 text-slate-950 font-black">
+                {loans.filter((l) => l.passbookEnabled).length} चालू
               </span>
             </button>
           )}
 
           <button
             onClick={onOpenAdmin}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-extrabold text-white bg-gradient-to-r from-rose-950 to-slate-900 hover:from-rose-900 hover:to-slate-800 rounded-xl transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-black text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-all shadow-md whitespace-nowrap shrink-0 cursor-pointer"
           >
-            <LayoutDashboard className="w-3.5 h-3.5 text-pink-300" />
-            <span>प्रशासक डैशबोर्ड</span>
+            <LayoutDashboard className="w-3.5 h-3.5 text-slate-900" />
+            <span>🏢 एडमिन बायां पैनल</span>
             {mode === 'DUMMY' && (
-              <span className="w-2 h-2 rounded-full bg-pink-400" title="डमी मोड" />
+              <span className="w-2 h-2 rounded-full bg-rose-600" title="डमी मोड" />
             )}
           </button>
         </div>

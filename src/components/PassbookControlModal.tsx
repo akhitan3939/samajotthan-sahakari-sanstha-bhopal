@@ -20,11 +20,13 @@ import { formatINR } from '../utils/loanCalculations';
 interface PassbookControlModalProps {
   onClose: () => void;
   onViewOnWebsite?: (accountNo?: string) => void;
+  onOpenAdminHub?: () => void;
 }
 
 export const PassbookControlModal: React.FC<PassbookControlModalProps> = ({
   onClose,
   onViewOnWebsite,
+  onOpenAdminHub,
 }) => {
   const { loans, togglePassbookEnabled } = useSociety();
   const [searchQuery, setSearchQuery] = useState('');
@@ -102,13 +104,29 @@ export const PassbookControlModal: React.FC<PassbookControlModalProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-rose-300 hover:text-white hover:bg-rose-900/60 transition-colors cursor-pointer"
-            title="बंद करें"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenAdminHub && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenAdminHub();
+                }}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-extrabold text-xs transition-all border border-slate-700 cursor-pointer shadow-xs"
+                title="प्रशासक के बाएं पैनल (Left Side Panel) में पूरा कंट्रोल देखें"
+              >
+                <span>⬅️ बाएं पैनल (Left Panel) में खोलें</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-rose-300 hover:text-white hover:bg-rose-900/60 transition-colors cursor-pointer"
+              title="बंद करें"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Informative Guidance Banner */}

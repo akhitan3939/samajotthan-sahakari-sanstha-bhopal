@@ -64,10 +64,13 @@ import {
   XCircle,
   ExternalLink,
   Award,
-  ArrowRight
+  ArrowRight,
+  Menu,
+  X
 } from 'lucide-react';
 
 interface AdminPanelProps {
+  initialStep?: StepWorkflow;
   onOpenAddLoan: () => void;
   onOpenLedger: (loan: LoanRecord) => void;
   onOpenPaymentEntry: (loan: LoanRecord, emiNo?: number) => void;
@@ -90,6 +93,7 @@ type StepWorkflow =
   | 'STEP7_WEBSITE_SETTINGS';
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
+  initialStep,
   onOpenAddLoan,
   onOpenLedger,
   onOpenPaymentEntry,
@@ -126,9 +130,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     resetAllData,
   } = useSociety();
 
-  const [activeStep, setActiveStep] = useState<StepWorkflow>('STEP0_DASHBOARD');
+  const [activeStep, setActiveStep] = useState<StepWorkflow>(initialStep || 'STEP0_DASHBOARD');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  useEffect(() => {
+    if (initialStep) {
+      setActiveStep(initialStep);
+    }
+  }, [initialStep]);
 
   // Dedicated Passbook Control Hub States
   const [passbookHubFilter, setPassbookHubFilter] = useState<'ALL' | 'ENABLED' | 'DISABLED'>('ALL');
@@ -473,249 +484,366 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       </div>
 
-      {/* Admin Executive Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-                प्रशासकीय नियंत्रण एवं वित्तीय प्रबंधन केंद्र
-              </h1>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-900 text-amber-300 font-mono font-bold">
-                Admin Console
-              </span>
+      {/* Admin Executive Header Bar */}
+      <div className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+        <div className="px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {/* Mobile Sidebar Toggle Button */}
+            <button
+              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+              className="sm:hidden px-2.5 py-1.5 rounded-xl bg-slate-800 text-amber-400 hover:text-white cursor-pointer flex items-center gap-1.5 text-xs font-bold border border-slate-700"
+              title="बायां मेनू खोलें / बंद करें"
+            >
+              {isMobileSidebarOpen ? <X className="w-4 h-4 text-rose-400" /> : <Menu className="w-4 h-4" />}
+              <span>{isMobileSidebarOpen ? 'मेनू छुपाएं' : '📌 बायां मेनू खोलें'}</span>
+            </button>
+
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm sm:text-base font-black text-white tracking-tight">
+                  {societyInfo.name}
+                </h1>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-mono">
+                  व्यवस्थापक कंसोल
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 hidden sm:block">
+                पंजीयन क्र. {societyInfo.regNo} • ऋण लेखा, वसूली एवं कानूनी ऑडिट केंद्र
+              </p>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              समाजोत्थान साई साख सहकारी संस्था मर्यादित, भोपाल • ऋण लेखा, वसूली व कानूनी ऑडिट
-            </p>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Direct Passbook Control on Header */}
             <button
-              onClick={() => setActiveStep('STEP0_DASHBOARD')}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                activeStep === 'STEP0_DASHBOARD'
-                  ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
+              onClick={() => {
+                setActiveStep('STEP_PASSBOOK_HUB');
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs border ${
+                activeStep === 'STEP_PASSBOOK_HUB'
+                  ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white border-rose-400 ring-2 ring-rose-400/30'
+                  : 'bg-rose-950/90 hover:bg-rose-900 text-rose-200 border-rose-700'
               }`}
-              title="संस्था समग्र डैशबोर्ड"
+              title="वेबसाइट पर किसकी पासबुक दिखाना है तय करें"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span>डैशबोर्ड</span>
+              <Eye className="w-3.5 h-3.5 text-pink-300 animate-pulse" />
+              <span>🎯 पासबुक कंट्रोल</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500 text-slate-950 font-mono font-bold">
+                {loans.filter((l) => l.passbookEnabled).length} चालू
+              </span>
             </button>
 
-            <button
-              onClick={() => setActiveStep('STEP4_CALCULATOR')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 border border-amber-300 font-bold text-xs transition-colors cursor-pointer"
-              title="संस्था 24/36 माह ऋण स्लैब एवं ईएमआई कैलकुलेटर"
-            >
-              <Calculator className="w-3.5 h-3.5 text-amber-700" />
-              <span>ऋण कैलकुलेटर</span>
-            </button>
-
-            <button
-              onClick={() => setActiveStep('STEP7_WEBSITE_SETTINGS')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 font-bold text-xs transition-colors cursor-pointer"
-              title="वेबसाइट व शाखा संपर्क सेटिंग्स"
-            >
-              <Globe className="w-3.5 h-3.5 text-purple-700" />
-              <span>वेबसाइट सेटिंग्स</span>
-            </button>
-
-            {onOpenNoDuesNoc && (
-              <button
-                onClick={() => onOpenNoDuesNoc()}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-950 border border-purple-400 font-bold text-xs transition-colors cursor-pointer"
-                title="No Dues (अदेयता) व NOC प्रमाण पत्र जारी करें"
-              >
-                <Award className="w-3.5 h-3.5 text-purple-700" />
-                <span>No Dues / NOC जारी करें</span>
-              </button>
-            )}
-
-            <button
-              onClick={exportLoansCSV}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors cursor-pointer border border-slate-300"
-              title="समस्त ऋण डाटा CSV/एक्सेल में डाउनलोड करें"
-            >
-              <Download className="w-3.5 h-3.5 text-slate-600" />
-              <span>डेटा CSV निर्यात</span>
-            </button>
-
-            <button
-              onClick={() => setActiveStep('STEP_PASSBOOK_HUB')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-950 font-black text-xs transition-colors cursor-pointer border border-rose-300 shadow-xs"
-              title="एक ही जगह से तय करें किसकी पासबुक वेबसाइट पर दिखाना है"
-            >
-              <Settings className="w-3.5 h-3.5 text-rose-700" />
-              <span>🎯 पासबुक कंट्रोल ({loans.filter((l) => l.passbookEnabled).length} सक्रिय)</span>
-            </button>
-
+            {/* Quick Add Loan */}
             <button
               onClick={onOpenAddLoan}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-sm cursor-pointer"
             >
-              <PlusCircle className="w-4 h-4" />
-              <span>नया ऋण स्वीकृत करें</span>
+              <PlusCircle className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">नया ऋण</span>
             </button>
 
+            {/* Return to Website */}
             <button
               onClick={onClose}
-              className="px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-200 text-xs font-bold transition-colors cursor-pointer"
             >
-              वेबसाइट पर लौटें
-            </button>
-          </div>
-        </div>
-
-        {/* STEP-BY-STEP GUIDED WORKFLOW WIZARD */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 border-t border-slate-100 bg-slate-50/70">
-          <div className="flex overflow-x-auto gap-2 py-2.5">
-            {/* Step 0: Dashboard */}
-            <button
-              onClick={() => setActiveStep('STEP0_DASHBOARD')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                activeStep === 'STEP0_DASHBOARD'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm ring-2 ring-amber-500/30'
-                  : 'bg-white text-slate-700 hover:bg-slate-200/80 border border-slate-200'
-              }`}
-            >
-              <Sparkles className="w-4 h-4 text-amber-900" />
-              <span>संस्था डैशबोर्ड (Dashboard)</span>
-            </button>
-
-            {/* Dedicated Step: Passbook Control Hub */}
-            <button
-              onClick={() => setActiveStep('STEP_PASSBOOK_HUB')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
-                activeStep === 'STEP_PASSBOOK_HUB'
-                  ? 'bg-rose-700 text-white shadow-md ring-2 ring-rose-500/30'
-                  : 'bg-rose-50 text-rose-950 hover:bg-rose-100 border-2 border-rose-300'
-              }`}
-            >
-              <Eye className="w-4 h-4 text-rose-600" />
-              <span>🎯 पासबुक दृश्यता कंट्रोल (एक ही जगह)</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white font-extrabold">
-                {loans.filter((l) => l.passbookEnabled).length} / {loans.length} चालू
-              </span>
-            </button>
-
-            {/* Step 1: Loans */}
-            <button
-              onClick={() => setActiveStep('STEP1_LOANS')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                activeStep === 'STEP1_LOANS'
-                  ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/10'
-                  : 'bg-white text-slate-700 hover:bg-slate-200/80 border border-slate-200'
-              }`}
-            >
-              <span className="w-5 h-5 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center text-[10px] font-extrabold">
-                1
-              </span>
-              <span>ऋण खाते व लेजर बही ({loans.length})</span>
-            </button>
-
-            {/* Step 2: Payments */}
-            <button
-              onClick={() => setActiveStep('STEP2_PAYMENTS')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                activeStep === 'STEP2_PAYMENTS'
-                  ? 'bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-700/20'
-                  : 'bg-white text-slate-700 hover:bg-slate-200/80 border border-slate-200'
-              }`}
-            >
-              <span className="w-5 h-5 rounded-full bg-emerald-400 text-slate-950 flex items-center justify-center text-[10px] font-extrabold">
-                2
-              </span>
-              <span>किश्त वसूली व रसीद (Multi-EMI)</span>
-            </button>
-
-            {/* Step 3: Defaulters */}
-            <button
-              onClick={() => setActiveStep('STEP3_DEFAULTERS')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                activeStep === 'STEP3_DEFAULTERS'
-                  ? 'bg-rose-800 text-white shadow-sm ring-2 ring-rose-800/20'
-                  : 'bg-white text-slate-700 hover:bg-slate-200/80 border border-slate-200'
-              }`}
-            >
-              <span className="w-5 h-5 rounded-full bg-rose-400 text-slate-950 flex items-center justify-center text-[10px] font-extrabold">
-                3
-              </span>
-              <span>डिफ़ॉल्टर व मांग नोटिस</span>
-              {defaulterLoans.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-200 text-rose-950 font-mono font-bold">
-                  {defaulterLoans.length}
-                </span>
-              )}
-            </button>
-
-            {/* Step 4: Calculator */}
-            <button
-              onClick={() => setActiveStep('STEP4_CALCULATOR')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                activeStep === 'STEP4_CALCULATOR'
-                  ? 'bg-amber-600 text-white shadow-sm ring-2 ring-amber-600/20'
-                  : 'bg-white text-slate-700 hover:bg-slate-200/80 border border-slate-200'
-              }`}
-            >
-              <span className="w-5 h-5 rounded-full bg-amber-300 text-slate-950 flex items-center justify-center text-[10px] font-extrabold">
-                4
-              </span>
-              <Calculator className="w-3.5 h-3.5 text-amber-500" />
-              <span>ऋण व ईएमआई कैलकुलेटर</span>
-            </button>
-
-            {/* Step 5: Reports */}
-            <button
-              onClick={() => setActiveStep('STEP5_REPORTS')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                activeStep === 'STEP5_REPORTS'
-                  ? 'bg-blue-800 text-white shadow-sm ring-2 ring-blue-800/20'
-                  : 'bg-white text-slate-700 hover:bg-slate-200/80 border border-slate-200'
-              }`}
-            >
-              <span className="w-5 h-5 rounded-full bg-blue-300 text-slate-950 flex items-center justify-center text-[10px] font-extrabold">
-                5
-              </span>
-              <span>वित्तीय चार्ट व ऑडिट रिपोर्ट</span>
-            </button>
-
-            {/* Step 6: Board & Backup */}
-            <button
-              onClick={() => setActiveStep('STEP6_BOARD_BACKUP')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                activeStep === 'STEP6_BOARD_BACKUP'
-                  ? 'bg-slate-800 text-white shadow-sm ring-2 ring-slate-800/20'
-                  : 'bg-white text-slate-700 hover:bg-slate-200/80 border border-slate-200'
-              }`}
-            >
-              <span className="w-5 h-5 rounded-full bg-slate-400 text-slate-950 flex items-center justify-center text-[10px] font-extrabold">
-                6
-              </span>
-              <span>संचालक मंडल व डेटा लॉक</span>
-            </button>
-
-            {/* Step 7: Website Settings */}
-            <button
-              onClick={() => setActiveStep('STEP7_WEBSITE_SETTINGS')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                activeStep === 'STEP7_WEBSITE_SETTINGS'
-                  ? 'bg-purple-800 text-white shadow-sm ring-2 ring-purple-800/20'
-                  : 'bg-white text-slate-700 hover:bg-slate-200/80 border border-slate-200'
-              }`}
-            >
-              <span className="w-5 h-5 rounded-full bg-purple-300 text-slate-950 flex items-center justify-center text-[10px] font-extrabold">
-                7
-              </span>
-              <Globe className="w-3.5 h-3.5" />
-              <span>वेबसाइट व संपर्क सेटिंग्स</span>
+              वेबसाइट पर लौटें ✕
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+      {/* Main Two-Column Layout: Left Side Panel + Right Content Area */}
+      <div className="flex flex-col sm:flex-row min-h-[calc(100vh-85px)] bg-slate-100 relative">
+        {/* LEFT SIDE PANEL (Sidebar Menu) */}
+        <aside
+          className={`w-full sm:w-72 md:w-80 lg:w-84 shrink-0 bg-slate-950 text-white border-r-2 border-slate-800 sm:sticky sm:top-[45px] sm:h-[calc(100vh-45px)] flex flex-col justify-between overflow-y-auto z-20 transition-all ${
+            isMobileSidebarOpen ? 'block' : 'hidden sm:flex'
+          }`}
+        >
+          {/* Menu Items Container */}
+          <div className="p-3.5 space-y-4">
+            {/* Sidebar Branding Header */}
+            <div className="p-3 bg-slate-900 border border-slate-800 flex items-center justify-between rounded-2xl mb-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="font-black text-xs text-amber-400 tracking-wide uppercase">
+                  📌 एडमिन बायां कंट्रोल मेनू
+                </span>
+              </div>
+              <span className="text-[10px] bg-slate-800 text-slate-300 font-bold px-2 py-0.5 rounded-full">
+                मेनू विकल्प
+              </span>
+            </div>
+            {/* Section 1: Priority Feature: PASSBOOK CONTROL (Bright, High-Contrast Card) */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] uppercase font-black tracking-wider text-rose-400 px-2 block">
+                ⭐ मुख्य वेबसाइट पासबुक नियंत्रण
+              </span>
+
+              <button
+                onClick={() => {
+                  setActiveStep('STEP_PASSBOOK_HUB');
+                  setIsMobileSidebarOpen(false);
+                }}
+                className={`w-full text-left p-3.5 rounded-2xl transition-all cursor-pointer flex items-center justify-between gap-3 shadow-md border-2 ${
+                  activeStep === 'STEP_PASSBOOK_HUB'
+                    ? 'bg-gradient-to-r from-rose-700 to-pink-700 text-white border-rose-300 ring-2 ring-rose-500/40 shadow-rose-950/50 scale-[1.02]'
+                    : 'bg-rose-950/80 hover:bg-rose-900 text-rose-100 border-rose-500/70 hover:scale-[1.01]'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2.5 rounded-xl bg-white/20 text-white shrink-0">
+                    <Eye className="w-5 h-5 text-pink-200 animate-pulse" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-black text-sm text-white leading-tight flex items-center gap-1.5">
+                      <span>🎯 पासबुक कंट्रोल</span>
+                    </div>
+                    <div className="text-[11px] text-rose-200 truncate mt-0.5 font-semibold">
+                      वेबसाइट पर किसकी दिखेगी
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-black bg-emerald-500 text-slate-950 block shadow-xs">
+                    {loans.filter((l) => l.passbookEnabled).length} चालू
+                  </span>
+                  <span className="text-[9px] text-rose-300 font-bold block mt-0.5">
+                    कुल {loans.length}
+                  </span>
+                </div>
+              </button>
+            </div>
+
+            {/* Section 2: Core Admin Workflow Menu (Numbered Steps) */}
+            <div className="space-y-1">
+              <span className="text-[10px] uppercase font-black tracking-wider text-slate-400 px-2 block">
+                📋 संस्था प्रशासनिक मेनू (Admin Menu)
+              </span>
+
+              {/* Step 0: Dashboard */}
+              <button
+                onClick={() => {
+                  setActiveStep('STEP0_DASHBOARD');
+                  setIsMobileSidebarOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                  activeStep === 'STEP0_DASHBOARD'
+                    ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400/40'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>संस्था डैशबोर्ड (Dashboard)</span>
+                </div>
+              </button>
+
+              {/* Step 1: Loans */}
+              <button
+                onClick={() => {
+                  setActiveStep('STEP1_LOANS');
+                  setIsMobileSidebarOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                  activeStep === 'STEP1_LOANS'
+                    ? 'bg-slate-800 text-white shadow-md ring-2 ring-slate-700 border border-slate-700'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 rounded-md bg-amber-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                    1
+                  </span>
+                  <span>ऋण खाते व लेजर बही</span>
+                </div>
+                <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-mono font-bold text-slate-300">
+                  {loans.length}
+                </span>
+              </button>
+
+              {/* Step 2: Payments */}
+              <button
+                onClick={() => {
+                  setActiveStep('STEP2_PAYMENTS');
+                  setIsMobileSidebarOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                  activeStep === 'STEP2_PAYMENTS'
+                    ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-500/40'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 rounded-md bg-emerald-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                    2
+                  </span>
+                  <span>किश्त वसूली व रसीद (Multi-EMI)</span>
+                </div>
+              </button>
+
+              {/* Step 3: Defaulters */}
+              <button
+                onClick={() => {
+                  setActiveStep('STEP3_DEFAULTERS');
+                  setIsMobileSidebarOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                  activeStep === 'STEP3_DEFAULTERS'
+                    ? 'bg-rose-700 text-white shadow-md ring-2 ring-rose-600/40'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 rounded-md bg-rose-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                    3
+                  </span>
+                  <span>डिफ़ॉल्टर व मांग नोटिस</span>
+                </div>
+                {defaulterLoans.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-rose-500 text-[10px] font-mono font-black text-white">
+                    {defaulterLoans.length}
+                  </span>
+                )}
+              </button>
+
+              {/* Step 4: Calculator */}
+              <button
+                onClick={() => {
+                  setActiveStep('STEP4_CALCULATOR');
+                  setIsMobileSidebarOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2.5 ${
+                  activeStep === 'STEP4_CALCULATOR'
+                    ? 'bg-amber-600 text-white shadow-md ring-2 ring-amber-500/40'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                }`}
+              >
+                <span className="w-5 h-5 rounded-md bg-amber-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                  4
+                </span>
+                <Calculator className="w-3.5 h-3.5 text-amber-400" />
+                <span>ऋण व ईएमआई कैलकुलेटर</span>
+              </button>
+
+              {/* Step 5: Reports */}
+              <button
+                onClick={() => {
+                  setActiveStep('STEP5_REPORTS');
+                  setIsMobileSidebarOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2.5 ${
+                  activeStep === 'STEP5_REPORTS'
+                    ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-500/40'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                }`}
+              >
+                <span className="w-5 h-5 rounded-md bg-blue-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                  5
+                </span>
+                <span>वित्तीय चार्ट व ऑडिट रिपोर्ट</span>
+              </button>
+
+              {/* Step 6: Board & Backup */}
+              <button
+                onClick={() => {
+                  setActiveStep('STEP6_BOARD_BACKUP');
+                  setIsMobileSidebarOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2.5 ${
+                  activeStep === 'STEP6_BOARD_BACKUP'
+                    ? 'bg-slate-700 text-white shadow-md ring-2 ring-slate-600'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                }`}
+              >
+                <span className="w-5 h-5 rounded-md bg-slate-500 text-white flex items-center justify-center text-[10px] font-black">
+                  6
+                </span>
+                <span>संचालक मंडल व डेटा लॉक</span>
+              </button>
+
+              {/* Step 7: Website Settings */}
+              <button
+                onClick={() => {
+                  setActiveStep('STEP7_WEBSITE_SETTINGS');
+                  setIsMobileSidebarOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2.5 ${
+                  activeStep === 'STEP7_WEBSITE_SETTINGS'
+                    ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-500/40'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                }`}
+              >
+                <span className="w-5 h-5 rounded-md bg-purple-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                  7
+                </span>
+                <Globe className="w-3.5 h-3.5 text-purple-300" />
+                <span>वेबसाइट व संपर्क सेटिंग्स</span>
+              </button>
+            </div>
+
+            {/* Section 3: Quick Administrative Tools */}
+            <div className="space-y-1.5 pt-3 border-t border-slate-800">
+              <span className="text-[10px] uppercase font-black tracking-wider text-slate-400 px-2 block">
+                ⚡ त्वरित कार्य (Quick Tools)
+              </span>
+
+              {onOpenNoDuesNoc && (
+                <button
+                  onClick={() => onOpenNoDuesNoc()}
+                  className="w-full text-left px-3 py-2 rounded-xl bg-purple-950/70 hover:bg-purple-900 text-purple-200 border border-purple-800 text-xs font-bold transition-all cursor-pointer flex items-center gap-2"
+                  title="No Dues (अदेयता) व NOC प्रमाण पत्र जारी करें"
+                >
+                  <Award className="w-4 h-4 text-purple-400" />
+                  <span>No Dues / NOC जारी करें</span>
+                </button>
+              )}
+
+              <button
+                onClick={exportLoansCSV}
+                className="w-full text-left px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 text-xs font-bold transition-all cursor-pointer flex items-center gap-2"
+                title="समस्त ऋण डाटा CSV/एक्सेल में डाउनलोड करें"
+              >
+                <Download className="w-4 h-4 text-slate-400" />
+                <span>समस्त डेटा CSV निर्यात</span>
+              </button>
+
+              <button
+                onClick={onOpenAddLoan}
+                className="w-full text-left px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all cursor-pointer flex items-center gap-2"
+              >
+                <PlusCircle className="w-4 h-4 text-amber-400" />
+                <span>नया ऋण स्वीकृत करें</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Left Panel Bottom Info */}
+          <div className="p-3.5 border-t border-slate-800/80 bg-slate-950 text-slate-400">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-bold text-xs text-slate-200">
+                  {societyInfo.shortName || 'साईं साख संस्था'}
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                  पंजीयन: {societyInfo.regNo}
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-rose-300 text-[11px] font-bold border border-slate-700 cursor-pointer"
+                title="वेबसाइट पर लौटें"
+              >
+                लौटें ✕
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* RIGHT MAIN CONTENT AREA */}
+        <main className="flex-1 min-w-0 p-3 sm:p-5 lg:p-7 space-y-6 overflow-y-auto">
         {/* STEP 0: DEDICATED SOCIETY DASHBOARD (NO TABLE) */}
         {activeStep === 'STEP0_DASHBOARD' && (
           <SocietyDashboard
@@ -3137,6 +3265,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
         )}
+        </main>
       </div>
     </div>
   );
