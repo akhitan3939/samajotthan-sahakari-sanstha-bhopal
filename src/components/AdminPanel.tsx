@@ -60,6 +60,9 @@ import {
   Camera,
   Plus,
   Check,
+  CheckCircle2,
+  XCircle,
+  ExternalLink,
   Award,
   ArrowRight
 } from 'lucide-react';
@@ -71,11 +74,13 @@ interface AdminPanelProps {
   onOpenReceipt: (loan: LoanRecord, emi: EmiInstallment) => void;
   onOpenNotice: (loan: LoanRecord) => void;
   onOpenNoDuesNoc?: (loan?: LoanRecord) => void;
+  onOpenPassbookControl?: () => void;
   onClose: () => void;
 }
 
 type StepWorkflow =
   | 'STEP0_DASHBOARD'
+  | 'STEP_PASSBOOK_HUB'
   | 'STEP1_LOANS'
   | 'STEP2_PAYMENTS'
   | 'STEP3_DEFAULTERS'
@@ -91,6 +96,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenReceipt,
   onOpenNotice,
   onOpenNoDuesNoc,
+  onOpenPassbookControl,
   onClose,
 }) => {
   const {
@@ -123,6 +129,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [activeStep, setActiveStep] = useState<StepWorkflow>('STEP0_DASHBOARD');
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  // Dedicated Passbook Control Hub States
+  const [passbookHubFilter, setPassbookHubFilter] = useState<'ALL' | 'ENABLED' | 'DISABLED'>('ALL');
+  const [passbookHubSearch, setPassbookHubSearch] = useState('');
+  const [passbookHubToast, setPassbookHubToast] = useState<string | null>(null);
 
   // Website & Branch Contact Form State
   const [contactForm, setContactForm] = useState({
@@ -532,6 +543,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
 
             <button
+              onClick={() => setActiveStep('STEP_PASSBOOK_HUB')}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-950 font-black text-xs transition-colors cursor-pointer border border-rose-300 shadow-xs"
+              title="एक ही जगह से तय करें किसकी पासबुक वेबसाइट पर दिखाना है"
+            >
+              <Settings className="w-3.5 h-3.5 text-rose-700" />
+              <span>🎯 पासबुक कंट्रोल ({loans.filter((l) => l.passbookEnabled).length} सक्रिय)</span>
+            </button>
+
+            <button
               onClick={onOpenAddLoan}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20 cursor-pointer"
             >
@@ -562,6 +582,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             >
               <Sparkles className="w-4 h-4 text-amber-900" />
               <span>संस्था डैशबोर्ड (Dashboard)</span>
+            </button>
+
+            {/* Dedicated Step: Passbook Control Hub */}
+            <button
+              onClick={() => setActiveStep('STEP_PASSBOOK_HUB')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                activeStep === 'STEP_PASSBOOK_HUB'
+                  ? 'bg-rose-700 text-white shadow-md ring-2 ring-rose-500/30'
+                  : 'bg-rose-50 text-rose-950 hover:bg-rose-100 border-2 border-rose-300'
+              }`}
+            >
+              <Eye className="w-4 h-4 text-rose-600" />
+              <span>🎯 पासबुक दृश्यता कंट्रोल (एक ही जगह)</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white font-extrabold">
+                {loans.filter((l) => l.passbookEnabled).length} / {loans.length} चालू
+              </span>
             </button>
 
             {/* Step 1: Loans */}
@@ -688,12 +724,348 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             mode={mode}
             onNavigateToStep={(step) => setActiveStep(step)}
             onOpenAddLoan={onOpenAddLoan}
+            onTogglePassbookEnabled={togglePassbookEnabled}
           />
+        )}
+
+        {/* STEP PASSBOOK HUB: DEDICATED CENTRAL PASSBOOK VISIBILITY CONTROL */}
+        {activeStep === 'STEP_PASSBOOK_HUB' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* 1. Header Banner */}
+            <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border-2 border-rose-500/40 relative overflow-hidden">
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-500/30 text-pink-300 border border-rose-400/40 flex items-center gap-1.5">
+                      <Eye className="w-3.5 h-3.5 text-pink-300" />
+                      एक ही जगह से संपूर्ण नियंत्रण (Single Central Control Hub)
+                    </span>
+                    <span className="px-3 py-1 rounded-full text-xs font-mono font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                      {loans.filter((l) => l.passbookEnabled).length} / {loans.length} वेबसाइट पर सक्रिय
+                    </span>
+                  </div>
+
+                  <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">
+                    🎯 ऑनलाइन पासबुक दृश्यता कंट्रोल (किसकी पासबुक दिखाना है)
+                  </h2>
+                  <p className="text-xs sm:text-sm text-rose-200/90 max-w-3xl leading-relaxed">
+                    यहाँ से आप तय कर सकते हैं कि मुख्य वेबसाइट के फ्रंट पेज पर किस-किस सदस्य की पासबुक दिखेगी और किसकी बंद रहेगी। जिस सदस्य के आगे <strong>'वेबसाइट पर चालू'</strong> होगा, केवल उसी का नाम फ्रंट पेज ड्रॉपडाउन में आएगा और उसी का खाता सर्च करने पर पासबुक खुलेगी।
+                  </p>
+                </div>
+
+                {/* Bulk Actions */}
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                  <button
+                    onClick={() => {
+                      loans.forEach((l) => {
+                        if (!l.passbookEnabled) togglePassbookEnabled(l.id);
+                      });
+                      setPassbookHubToast('🟢 सभी सदस्यों की पासबुक मुख्य वेबसाइट पर चालू कर दी गई है!');
+                      setTimeout(() => setPassbookHubToast(null), 3500);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                    title="सभी सदस्यों की पासबुक एक क्लिक में चालू करें"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                    <span>सभी की चालू करें (Enable All)</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      loans.forEach((l) => {
+                        if (l.passbookEnabled) togglePassbookEnabled(l.id);
+                      });
+                      setPassbookHubToast('🔴 सभी सदस्यों की पासबुक मुख्य वेबसाइट पर बंद कर दी गई है!');
+                      setTimeout(() => setPassbookHubToast(null), 3500);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-rose-700 hover:bg-rose-600 text-white text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                    title="सभी सदस्यों की पासबुक एक क्लिक में बंद करें"
+                  >
+                    <XCircle className="w-4 h-4 text-rose-200" />
+                    <span>सभी की बंद करें (Disable All)</span>
+                  </button>
+
+                  <button
+                    onClick={onClose}
+                    className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all border border-white/20 flex items-center gap-2 cursor-pointer"
+                    title="फ्रंट पेज पर परिणाम देखने के लिए वेबसाइट पर लौटें"
+                  >
+                    <span>वेबसाइट पर देखें →</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Toast message */}
+            {passbookHubToast && (
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border-2 border-emerald-400 text-emerald-950 font-black text-xs flex items-center gap-2.5 animate-fadeIn shadow-sm">
+                <Sparkles className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span>{passbookHubToast}</span>
+              </div>
+            )}
+
+            {/* Filter & Search Bar */}
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl shrink-0 overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => setPassbookHubFilter('ALL')}
+                  className={`px-3.5 py-2 rounded-lg text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                    passbookHubFilter === 'ALL'
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'text-slate-700 hover:text-slate-950'
+                  }`}
+                >
+                  सभी सदस्य ({loans.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPassbookHubFilter('ENABLED')}
+                  className={`px-3.5 py-2 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                    passbookHubFilter === 'ENABLED'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-emerald-800 hover:bg-emerald-50'
+                  }`}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>केवल वेबसाइट पर चालू ({loans.filter((l) => l.passbookEnabled).length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPassbookHubFilter('DISABLED')}
+                  className={`px-3.5 py-2 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                    passbookHubFilter === 'DISABLED'
+                      ? 'bg-rose-700 text-white shadow-xs'
+                      : 'text-rose-800 hover:bg-rose-50'
+                  }`}
+                >
+                  <EyeOff className="w-3.5 h-3.5" />
+                  <span>केवल बंद ({loans.filter((l) => !l.passbookEnabled).length})</span>
+                </button>
+              </div>
+
+              {/* Search Box */}
+              <div className="relative flex-1 sm:max-w-md">
+                <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="सदस्य का नाम, खाता क्र. (जैसे SB-2023-0213) या फोन से खोजें..."
+                  value={passbookHubSearch}
+                  onChange={(e) => setPassbookHubSearch(e.target.value)}
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                />
+              </div>
+            </div>
+
+            {/* List of Members with Big, Obvious Toggles */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {loans
+                .filter((l) => {
+                  if (passbookHubFilter === 'ENABLED' && !l.passbookEnabled) return false;
+                  if (passbookHubFilter === 'DISABLED' && l.passbookEnabled) return false;
+                  if (!passbookHubSearch.trim()) return true;
+                  const q = passbookHubSearch.toLowerCase().trim();
+                  return (
+                    l.borrowerName.toLowerCase().includes(q) ||
+                    l.accountNo.toLowerCase().includes(q) ||
+                    l.membershipNo.toLowerCase().includes(q) ||
+                    l.phone.includes(q)
+                  );
+                })
+                .map((loan) => {
+                  const isEnabled = loan.passbookEnabled ?? false;
+                  return (
+                    <div
+                      key={loan.id}
+                      className={`p-5 rounded-2xl border-2 transition-all flex flex-col justify-between gap-4 shadow-sm ${
+                        isEnabled
+                          ? 'bg-white border-emerald-400 ring-2 ring-emerald-300/40 shadow-emerald-100/50'
+                          : 'bg-white border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {/* Top: Member Meta */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-mono font-black text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-300">
+                              खाता: {loan.accountNo}
+                            </span>
+                            <span className="text-xs font-mono text-slate-500">
+                              सदस्यता #{loan.membershipNo}
+                            </span>
+                          </div>
+
+                          <h3 className="text-base sm:text-lg font-black text-slate-950 mt-1">
+                            {loan.borrowerName}
+                          </h3>
+
+                          <div className="text-xs text-slate-600 flex flex-wrap items-center gap-2 pt-0.5">
+                            <span>मो.: <strong className="font-mono text-slate-900">{loan.phone}</strong></span>
+                            <span>•</span>
+                            <span>स्वीकृत ऋण: <strong className="font-mono text-slate-900">{formatINR(loan.loanAmount)}</strong> ({loan.tenureMonths} माह)</span>
+                          </div>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div className="shrink-0">
+                          {isEnabled ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5">
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>वेबसाइट पर चालू</span>
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600 border border-slate-300 flex items-center gap-1.5">
+                              <EyeOff className="w-3.5 h-3.5 text-slate-500" />
+                              <span>वेबसाइट पर बंद</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bottom Action Buttons */}
+                      <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                        {/* Big Primary Toggle Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            togglePassbookEnabled(loan.id);
+                            setPassbookHubToast(
+                              isEnabled
+                                ? `🔴 '${loan.borrowerName}' की पासबुक वेबसाइट पर बंद कर दी गई है।`
+                                : `🟢 '${loan.borrowerName}' की पासबुक वेबसाइट पर चालू कर दी गई है!`
+                            );
+                            setTimeout(() => setPassbookHubToast(null), 3000);
+                          }}
+                          className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2 ${
+                            isEnabled
+                              ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                          }`}
+                        >
+                          {isEnabled ? (
+                            <>
+                              <EyeOff className="w-4 h-4" />
+                              <span>वेबसाइट से हटाएं (पासबुक बंद करें)</span>
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-4 h-4" />
+                              <span>वेबसाइट पर दिखाएं (पासबुक चालू करें)</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Live Preview Button */}
+                        <button
+                          type="button"
+                          onClick={() => onOpenLedger(loan)}
+                          className="px-3.5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-800 font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+                          title="इस सदस्य की विस्तृत लेजर बही खोलें"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 text-slate-600" />
+                          <span>लेजर देखें</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
         )}
 
         {/* STEP 1: LOAN ACCOUNTS & HIGH-CONTRAST LEDGER TABLE */}
         {activeStep === 'STEP1_LOANS' && (
           <div className="space-y-5">
+            {/* 🌐 PROMINENT PASSBOOK VISIBILITY PERMISSION BANNER */}
+            <div className="bg-gradient-to-r from-rose-50 via-pink-50 to-rose-50 p-4 sm:p-5 rounded-3xl border-2 border-rose-300 shadow-md space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-rose-200 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-rose-600 text-white rounded-xl">
+                    <Eye className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-black text-slate-950 flex items-center gap-2">
+                      <span>🌐 वेबसाइट पासबुक बटन: किसकी पासबुक वेबसाइट पर दिखाना है?</span>
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        {loans.filter((l) => l.passbookEnabled).length} / {loans.length} सक्रिय
+                      </span>
+                    </h3>
+                    <p className="text-xs text-rose-900 font-medium mt-0.5">
+                      यहाँ दिए गए <strong>चालू / बंद</strong> बटन पर क्लिक करके तुरंत तय करें कि फ्रंट पेज पर किस सदस्य की पासबुक दिखेगी।
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      loans.forEach((l) => {
+                        if (!l.passbookEnabled) togglePassbookEnabled(l.id);
+                      });
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    सबकी चालू करें
+                  </button>
+                  <button
+                    onClick={() => {
+                      loans.forEach((l) => {
+                        if (l.passbookEnabled) togglePassbookEnabled(l.id);
+                      });
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    सबकी बंद करें
+                  </button>
+                </div>
+              </div>
+
+              {/* Members Quick Toggle Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                {loans.map((l) => (
+                  <div
+                    key={l.id}
+                    className={`p-3 rounded-2xl border flex items-center justify-between gap-2 transition-all ${
+                      l.passbookEnabled
+                        ? 'bg-white border-emerald-400 shadow-xs ring-1 ring-emerald-300'
+                        : 'bg-white/60 border-slate-300 text-slate-500'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="font-extrabold text-xs text-slate-950 truncate">
+                        {l.borrowerName}
+                      </div>
+                      <div className="text-[10px] font-mono text-slate-500">
+                        खाता: {l.accountNo}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => togglePassbookEnabled(l.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-xs ${
+                        l.passbookEnabled
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20'
+                          : 'bg-rose-100 hover:bg-rose-200 text-rose-900 border border-rose-300'
+                      }`}
+                      title={l.passbookEnabled ? 'पासबुक चालू है - बंद करने के लिए क्लिक करें' : 'पासबुक बंद है - चालू करने के लिए क्लिक करें'}
+                    >
+                      {l.passbookEnabled ? (
+                        <>
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>🟢 चालू</span>
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff className="w-3.5 h-3.5 text-rose-700" />
+                          <span>⚪ बंद</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
             {/* Control Strip */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 flex flex-col lg:flex-row items-center justify-between gap-3 shadow-xs">
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto flex-1">
@@ -760,13 +1132,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <tr>
                       <th className="p-3.5">सदस्यता क्र.</th>
                       <th className="p-3.5">ऋणी का नाम व मोबाइल</th>
+                      <th className="p-3.5 text-center bg-rose-950 text-pink-200">वेबसाइट पासबुक</th>
                       <th className="p-3.5">स्वीकृत ऋण</th>
                       <th className="p-3.5">अवधि व तिथि</th>
                       <th className="p-3.5">2 साख जमानतदार</th>
                       <th className="p-3.5 text-right">वसूल मूलधन</th>
                       <th className="p-3.5 text-right">शेष मूलधन</th>
                       <th className="p-3.5 text-center">स्थिति</th>
-                      <th className="p-3.5 text-center">वेबसाइट पासबुक</th>
                       <th className="p-3.5 text-center">चरणबद्ध कार्रवाई (Next Actions)</th>
                     </tr>
                   </thead>
@@ -792,6 +1164,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <span className="text-slate-500 text-[10px] font-mono">
                               {loan.phone}
                             </span>
+                          </td>
+
+                          {/* Front Passbook Visibility Toggle Button (Column 3 - High Visibility) */}
+                          <td className="p-3.5 text-center font-sans bg-rose-50/50">
+                            <button
+                              onClick={() => togglePassbookEnabled(loan.id)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border transition-all cursor-pointer shadow-xs ${
+                                loan.passbookEnabled
+                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 ring-2 ring-emerald-300'
+                                  : 'bg-rose-100 hover:bg-rose-200 text-rose-950 border-rose-300'
+                              }`}
+                              title={
+                                loan.passbookEnabled
+                                  ? 'वेबसाइट पर पासबुक चालू है - बंद करने के लिए क्लिक करें'
+                                  : 'वेबसाइट पर पासबुक बंद है - चालू करने के लिए क्लिक करें'
+                              }
+                            >
+                              {loan.passbookEnabled ? (
+                                <>
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>🟢 चालू (On)</span>
+                                </>
+                              ) : (
+                                <>
+                                  <EyeOff className="w-3.5 h-3.5 text-rose-700" />
+                                  <span>⚪ बंद (Off)</span>
+                                </>
+                              )}
+                            </button>
                           </td>
 
                           <td className="p-3.5 font-bold text-slate-900 text-xs">
@@ -838,34 +1239,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             )}
                           </td>
 
-                          {/* Front Passbook Visibility Toggle */}
-                          <td className="p-3.5 text-center font-sans">
-                            <button
-                              onClick={() => togglePassbookEnabled(loan.id)}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
-                                loan.passbookEnabled
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 shadow-xs'
-                                  : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 shadow-xs'
-                              }`}
-                              title={
-                                loan.passbookEnabled
-                                  ? 'वेबसाइट पर पासबुक चालू है (बंद करने के लिए क्लिक करें)'
-                                  : 'वेबसाइट पर पासबुक बंद है (चालू करने के लिए क्लिक करें)'
-                              }
-                            >
-                              {loan.passbookEnabled ? (
-                                <>
-                                  <Eye className="w-3 h-3 text-emerald-600" />
-                                  <span>सक्षम (On)</span>
-                                </>
-                              ) : (
-                                <>
-                                  <EyeOff className="w-3 h-3 text-rose-500" />
-                                  <span>बंद (Off)</span>
-                                </>
-                              )}
-                            </button>
-                          </td>
 
                           {/* Sequential, unconfusing action buttons */}
                           <td className="p-3.5 text-center whitespace-nowrap font-sans">
@@ -932,7 +1305,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   {/* MANDATORY FOOTER TOTAL FOR EVERY REPORT */}
                   <tfoot className="bg-slate-900 text-white font-mono font-bold text-[11px]">
                     <tr>
-                      <td className="p-3.5 font-sans" colSpan={2}>
+                      <td className="p-3.5 font-sans" colSpan={3}>
                         कुल योग ({filteredLoans.length} खाते)
                       </td>
                       <td className="p-3.5">
@@ -964,7 +1337,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           )
                           .toFixed(2)}
                       </td>
-                      <td className="p-3.5 text-center" colSpan={3}>—</td>
+                      <td className="p-3.5 text-center" colSpan={2}>—</td>
                     </tr>
                   </tfoot>
                 </table>

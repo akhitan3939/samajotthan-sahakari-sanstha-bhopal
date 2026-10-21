@@ -1,11 +1,12 @@
 import React from 'react';
 import { SocietyEmblem } from './SocietyEmblem';
 import { useSociety } from '../context/SocietyContext';
-import { User, LayoutDashboard, Calculator, FileCheck2 } from 'lucide-react';
+import { User, LayoutDashboard, Calculator, Settings } from 'lucide-react';
 
 interface NavbarProps {
   onOpenAdmin: () => void;
   onOpenMemberPortal: () => void;
+  onOpenPassbookControl?: () => void;
   onScrollToBoard: () => void;
   onScrollToAddress: () => void;
   onScrollToCalculator: () => void;
@@ -14,11 +15,12 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdmin,
   onOpenMemberPortal,
+  onOpenPassbookControl,
   onScrollToBoard,
   onScrollToAddress,
   onScrollToCalculator,
 }) => {
-  const { mode, societyInfo } = useSociety();
+  const { mode, societyInfo, loans } = useSociety();
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-rose-200/80 shadow-xs">
@@ -71,6 +73,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             <User className="w-3.5 h-3.5 text-rose-600" />
             <span>सदस्य पासबुक</span>
           </button>
+
+          {onOpenPassbookControl && (
+            <button
+              onClick={onOpenPassbookControl}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-black text-rose-950 bg-rose-200/90 hover:bg-rose-300 border-2 border-rose-400 rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
+              title="एक ही जगह से तय करें किसकी पासबुक वेबसाइट पर दिखेगी"
+            >
+              <Settings className="w-3.5 h-3.5 text-rose-800" />
+              <span>🎯 पासबुक कंट्रोल</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-600 text-white font-extrabold">
+                {loans.filter((l) => l.passbookEnabled).length}
+              </span>
+            </button>
+          )}
 
           <button
             onClick={onOpenAdmin}

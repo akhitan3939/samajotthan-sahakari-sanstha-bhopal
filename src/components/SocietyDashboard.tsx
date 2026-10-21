@@ -26,7 +26,10 @@ import {
   FileCheck,
   ChevronRight,
   Award,
-  CircleDot
+  CircleDot,
+  Eye,
+  EyeOff,
+  Globe
 } from 'lucide-react';
 
 interface SocietyDashboardProps {
@@ -35,6 +38,7 @@ interface SocietyDashboardProps {
   mode: 'LIVE' | 'DUMMY';
   onNavigateToStep: (
     step:
+      | 'STEP_PASSBOOK_HUB'
       | 'STEP1_LOANS'
       | 'STEP2_PAYMENTS'
       | 'STEP3_DEFAULTERS'
@@ -45,6 +49,7 @@ interface SocietyDashboardProps {
   ) => void;
   onOpenAddLoan: () => void;
   onOpenNoDuesNoc?: () => void;
+  onTogglePassbookEnabled?: (loanId: string) => void;
 }
 
 export const SocietyDashboard: React.FC<SocietyDashboardProps> = ({
@@ -54,6 +59,7 @@ export const SocietyDashboard: React.FC<SocietyDashboardProps> = ({
   onNavigateToStep,
   onOpenAddLoan,
   onOpenNoDuesNoc,
+  onTogglePassbookEnabled,
 }) => {
   const stats = calculateComprehensiveStats(loans);
 
@@ -146,6 +152,116 @@ export const SocietyDashboard: React.FC<SocietyDashboardProps> = ({
               <span>नया ऋण स्वीकृति</span>
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* 🌐 PROMINENT PASSBOOK VISIBILITY CONTROLS (किसकी पासबुक वेबसाइट पर दिखाना है) */}
+      <div className="bg-gradient-to-br from-rose-950 via-slate-900 to-rose-950 text-white rounded-3xl p-6 sm:p-7 shadow-xl border-2 border-rose-500/50 space-y-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-rose-800/80 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-rose-600/30 border border-rose-400/50 rounded-2xl text-pink-300">
+              <Globe className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-base sm:text-lg font-black text-white">
+                  🌐 वेबसाइट पासबुक नियंत्रण: किसकी पासबुक वेबसाइट पर दिखाना है?
+                </h3>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  {loans.filter((l) => l.passbookEnabled).length} / {loans.length} चालू
+                </span>
+              </div>
+              <p className="text-xs text-rose-200/80 mt-1">
+                यहाँ दिए गए बटन पर क्लिक करके तय करें कि मुख्य वेबसाइट (Front Page) पर किस सदस्य की पासबुक दिखाई देगी।
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={() => onNavigateToStep('STEP_PASSBOOK_HUB')}
+              className="px-3.5 py-2 rounded-xl bg-pink-100 hover:bg-pink-200 text-rose-950 font-black text-xs transition-all shadow-md cursor-pointer flex items-center gap-1.5 border border-pink-300"
+              title="एक ही जगह से सभी सदस्यों की पासबुक कंट्रोल करें"
+            >
+              <span>🎯 पूरा पासबुक कंट्रोल हब खोलें →</span>
+            </button>
+            <button
+              onClick={() => {
+                loans.forEach((l) => {
+                  if (!l.passbookEnabled) onTogglePassbookEnabled?.(l.id);
+                });
+              }}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              सबकी पासबुक चालू करें
+            </button>
+            <button
+              onClick={() => {
+                loans.forEach((l) => {
+                  if (l.passbookEnabled) onTogglePassbookEnabled?.(l.id);
+                });
+              }}
+              className="px-3.5 py-2 rounded-xl bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              सबकी पासबुक बंद करें
+            </button>
+          </div>
+        </div>
+
+        {/* Members Cards with Clear Toggle Buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+          {loans.map((loan) => (
+            <div
+              key={loan.id}
+              className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                loan.passbookEnabled
+                  ? 'bg-emerald-950/40 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/30'
+                  : 'bg-slate-900/70 border-slate-700/80'
+              }`}
+            >
+              <div className="min-w-0">
+                <span className="text-[10px] font-mono text-amber-300 block">
+                  #{loan.membershipNo} • {loan.accountNo}
+                </span>
+                <h4 className="text-sm font-extrabold text-white truncate mt-0.5">
+                  {loan.borrowerName}
+                </h4>
+                <span
+                  className={`text-[10px] font-bold block mt-1 ${
+                    loan.passbookEnabled ? 'text-emerald-400' : 'text-slate-400'
+                  }`}
+                >
+                  {loan.passbookEnabled ? '🟢 वेबसाइट पर दिख रही है' : '⚪ वेबसाइट पर छिपी हुई है'}
+                </span>
+              </div>
+
+              <button
+                onClick={() => onTogglePassbookEnabled?.(loan.id)}
+                className={`px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-md ${
+                  loan.passbookEnabled
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 ring-2 ring-emerald-400 shadow-emerald-900/40'
+                    : 'bg-slate-800 hover:bg-slate-700 text-rose-300 border border-slate-600'
+                }`}
+                title={
+                  loan.passbookEnabled
+                    ? 'वेबसाइट पर पासबुक चालू है - बंद करने के लिए क्लिक करें'
+                    : 'वेबसाइट पर पासबुक बंद है - चालू करने के लिए क्लिक करें'
+                }
+              >
+                {loan.passbookEnabled ? (
+                  <>
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>चालू (On)</span>
+                  </>
+                ) : (
+                  <>
+                    <EyeOff className="w-3.5 h-3.5" />
+                    <span>बंद (Off)</span>
+                  </>
+                )}
+              </button>
+            </div>
+          ))}
         </div>
       </div>
 
