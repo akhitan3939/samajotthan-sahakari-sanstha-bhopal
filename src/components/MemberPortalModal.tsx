@@ -45,7 +45,7 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({
       );
       if (match) return match.id;
     }
-    return enabledLoans[0]?.id || '';
+    return '';
   });
 
   const [selectedLoan, setSelectedLoan] = useState<LoanRecord | null>(() => {
@@ -55,7 +55,7 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({
       );
       if (match) return match;
     }
-    return enabledLoans[0] || null;
+    return null;
   });
 
   const [errorMessage, setErrorMessage] = useState<{
@@ -222,24 +222,6 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({
                 </form>
               </div>
             </div>
-
-            {/* Quick Helper Links */}
-            <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-rose-900 font-medium">
-              <span className="font-bold">त्वरित उपलब्ध अधिकृत खाते:</span>
-              {enabledLoans.map((l) => (
-                <button
-                  key={l.id}
-                  onClick={() => handleDropdownSelect(l.id)}
-                  className={`px-2.5 py-0.5 rounded-full border text-[11px] font-semibold transition-colors cursor-pointer ${
-                    selectedLoan?.id === l.id
-                      ? 'bg-rose-700 text-white border-rose-700'
-                      : 'bg-white text-rose-900 border-rose-200 hover:bg-rose-100'
-                  }`}
-                >
-                  {l.borrowerName} ({l.accountNo})
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Error / Unauthorized State */}
@@ -271,6 +253,19 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Prompt to Select when no member is chosen */}
+          {!selectedLoan && !errorMessage && (
+            <div className="p-8 text-center bg-rose-50/60 rounded-3xl border border-rose-200 space-y-2">
+              <CreditCard className="w-8 h-8 text-rose-400 mx-auto" />
+              <p className="text-sm font-bold text-rose-950">
+                👆 कृपया ऊपर दिए गए ड्रॉपडाउन से सदस्य का नाम चुनें।
+              </p>
+              <p className="text-xs text-rose-800">
+                चुनते ही केवल उसी सदस्य की संपूर्ण पासबुक यहाँ प्रदर्शित होगी।
+              </p>
             </div>
           )}
 

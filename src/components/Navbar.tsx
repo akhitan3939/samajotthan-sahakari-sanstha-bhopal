@@ -1,7 +1,7 @@
 import React from 'react';
 import { SocietyEmblem } from './SocietyEmblem';
 import { useSociety } from '../context/SocietyContext';
-import { User, LayoutDashboard, Calculator, Settings } from 'lucide-react';
+import { User, LayoutDashboard, Calculator, Settings, Lock } from 'lucide-react';
 
 interface NavbarProps {
   onOpenAdmin: () => void;
@@ -64,7 +64,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </nav>
 
-        {/* Zone 3: 1 primary action */}
+        {/* Zone 3: Member Passbook and Admin Login */}
         <div className="flex items-center gap-2.5 shrink-0">
           <button
             onClick={onOpenMemberPortal}
@@ -74,29 +74,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>सदस्य पासबुक</span>
           </button>
 
-          {onOpenPassbookControl && (
-            <button
-              onClick={onOpenPassbookControl}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-black text-white bg-gradient-to-r from-rose-700 to-pink-700 hover:from-rose-800 hover:to-pink-800 rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer shadow-md"
-              title="बाएं पैनल में तय करें किसकी पासबुक वेबसाइट पर दिखेगी"
-            >
-              <Settings className="w-3.5 h-3.5 text-pink-200" />
-              <span>🎯 पासबुक कंट्रोल</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-400 text-slate-950 font-black">
-                {loans.filter((l) => l.passbookEnabled).length} चालू
-              </span>
-            </button>
-          )}
-
           <button
             onClick={onOpenAdmin}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-black text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-all shadow-md whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
+            title="संस्था व्यवस्थापक लॉगिन"
           >
-            <LayoutDashboard className="w-3.5 h-3.5 text-slate-900" />
-            <span>🏢 एडमिन बायां पैनल</span>
-            {mode === 'DUMMY' && (
-              <span className="w-2 h-2 rounded-full bg-rose-600" title="डमी मोड" />
-            )}
+            <Lock className="w-3.5 h-3.5 text-slate-700" />
+            <span>प्रशासक लॉगिन</span>
           </button>
         </div>
       </div>

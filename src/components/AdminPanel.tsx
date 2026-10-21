@@ -78,6 +78,7 @@ interface AdminPanelProps {
   onOpenNotice: (loan: LoanRecord) => void;
   onOpenNoDuesNoc?: (loan?: LoanRecord) => void;
   onOpenPassbookControl?: () => void;
+  onLogout?: () => void;
   onClose: () => void;
 }
 
@@ -101,6 +102,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenNotice,
   onOpenNoDuesNoc,
   onOpenPassbookControl,
+  onLogout,
   onClose,
 }) => {
   const {
@@ -542,12 +544,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <span className="hidden sm:inline">नया ऋण</span>
             </button>
 
-            {/* Return to Website */}
+            {/* Logout and Return */}
             <button
-              onClick={onClose}
-              className="px-3 py-1.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-200 text-xs font-bold transition-colors cursor-pointer"
+              onClick={onLogout || onClose}
+              className="px-3 py-1.5 rounded-xl border border-rose-800 bg-rose-950/80 hover:bg-rose-900 text-rose-200 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+              title="प्रशासक सत्र समाप्त करें एवं वेबसाइट पर लौटें"
             >
-              वेबसाइट पर लौटें ✕
+              <span>🚪 लॉगआउट ✕</span>
             </button>
           </div>
         </div>
@@ -584,7 +587,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => {
                   setActiveStep('STEP_PASSBOOK_HUB');
-                  setIsMobileSidebarOpen(false);
                 }}
                 className={`w-full text-left p-3.5 rounded-2xl transition-all cursor-pointer flex items-center justify-between gap-3 shadow-md border-2 ${
                   activeStep === 'STEP_PASSBOOK_HUB'
@@ -627,7 +629,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => {
                   setActiveStep('STEP0_DASHBOARD');
-                  setIsMobileSidebarOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
                   activeStep === 'STEP0_DASHBOARD'
@@ -645,7 +646,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => {
                   setActiveStep('STEP1_LOANS');
-                  setIsMobileSidebarOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
                   activeStep === 'STEP1_LOANS'
@@ -668,7 +668,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => {
                   setActiveStep('STEP2_PAYMENTS');
-                  setIsMobileSidebarOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
                   activeStep === 'STEP2_PAYMENTS'
@@ -688,7 +687,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => {
                   setActiveStep('STEP3_DEFAULTERS');
-                  setIsMobileSidebarOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
                   activeStep === 'STEP3_DEFAULTERS'
@@ -713,7 +711,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => {
                   setActiveStep('STEP4_CALCULATOR');
-                  setIsMobileSidebarOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2.5 ${
                   activeStep === 'STEP4_CALCULATOR'
@@ -732,7 +729,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => {
                   setActiveStep('STEP5_REPORTS');
-                  setIsMobileSidebarOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2.5 ${
                   activeStep === 'STEP5_REPORTS'
@@ -750,7 +746,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => {
                   setActiveStep('STEP6_BOARD_BACKUP');
-                  setIsMobileSidebarOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2.5 ${
                   activeStep === 'STEP6_BOARD_BACKUP'
@@ -768,7 +763,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => {
                   setActiveStep('STEP7_WEBSITE_SETTINGS');
-                  setIsMobileSidebarOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2.5 ${
                   activeStep === 'STEP7_WEBSITE_SETTINGS'
@@ -832,11 +826,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               </div>
               <button
-                onClick={onClose}
-                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-rose-300 text-[11px] font-bold border border-slate-700 cursor-pointer"
-                title="वेबसाइट पर लौटें"
+                onClick={onLogout || onClose}
+                className="px-2.5 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-200 text-[11px] font-bold border border-rose-800 cursor-pointer"
+                title="प्रशासक सत्र समाप्त करें (लॉगआउट)"
               >
-                लौटें ✕
+                लॉगआउट ✕
               </button>
             </div>
           </div>

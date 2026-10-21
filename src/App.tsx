@@ -14,6 +14,7 @@ import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminPanel } from './components/AdminPanel';
 import { NoDuesNocModal } from './components/NoDuesNocModal';
 import { PassbookControlModal } from './components/PassbookControlModal';
+import { FrontPassbookViewer } from './components/FrontPassbookViewer';
 import { Footer } from './components/Footer';
 import { EmiInstallment, LoanRecord } from './types';
 import {
@@ -38,9 +39,9 @@ function MainApp() {
   // Navigation View State
   const [view, setView] = useState<'HOME' | 'ADMIN'>('HOME');
 
-  // Admin Login Security Modal
+  // Admin Login Security Modal (Requires S5BMBHOPAL / Admin#1234)
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(true);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
   // Modals State
   const [isMemberPortalOpen, setIsMemberPortalOpen] = useState(false);
@@ -131,6 +132,9 @@ function MainApp() {
   // Filter ONLY loans authorized by admin for online passbook
   const enabledLoans = loans.filter((l) => l.passbookEnabled === true);
 
+  // Selected loan for front-page passbook viewing (ONLY when chosen by user)
+  const selectedFrontLoan = enabledLoans.find((l) => l.id === selectedDropdownLoanId) || null;
+
   // Front-page account number search handler
   const handleFrontAccountSearch = (accountQuery: string) => {
     const q = accountQuery.trim().toLowerCase();
@@ -145,93 +149,38 @@ function MainApp() {
         l.membershipNo.toLowerCase() === q
     );
     if (!matched) {
+      setSelectedDropdownLoanId('');
       setFrontSearchFeedback(`खाता क्रमांक '${accountQuery}' संस्था रिकॉर्ड में नहीं मिला। कृपया सही खाता क्रमांक दर्ज करें।`);
       return;
     }
     if (!matched.passbookEnabled) {
+      setSelectedDropdownLoanId('');
       setFrontSearchFeedback(
-        `खाता क्रमांक ${matched.accountNo} (${matched.borrowerName}) की ऑनलाइन पासबुक वर्तमान में संस्था प्रशासन द्वारा सक्षम नहीं की गई है। कृपया संस्था कार्यालय से संपर्क करें।`
+        `खाता क्रमांक ${matched.accountNo} (${matched.borrowerName}) की ऑनलाइन पासबुक वर्तमान में संस्था प्रशासन द्वारा सक्षम (सक्रिय) नहीं की गई है। कृपया संस्था कार्यालय से संपर्क करें।`
       );
       return;
     }
-    // Success: open modal with this account
+    // Success: select this account and show passbook directly on front page
     setFrontSearchFeedback(null);
-    setMemberPortalInitialAccount(matched.accountNo);
-    setIsMemberPortalOpen(true);
+    setSelectedDropdownLoanId(matched.id);
+    setTimeout(() => {
+      document.getElementById('selected-passbook-view')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   // Front-page dropdown select handler
   const handleFrontDropdownSelect = (loanId: string) => {
-    if (!loanId) return;
-    const found = enabledLoans.find((l) => l.id === loanId);
-    if (found) {
-      setFrontSearchFeedback(null);
-      setFrontSearchAccountNo(found.accountNo);
-      setMemberPortalInitialAccount(found.accountNo);
-      setIsMemberPortalOpen(true);
+    setSelectedDropdownLoanId(loanId);
+    setFrontSearchFeedback(null);
+    if (loanId) {
+      setTimeout(() => {
+        document.getElementById('selected-passbook-view')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff0f3] via-[#fff5f7] to-[#ffeef2] text-slate-900 flex flex-col font-sans">
-      {/* 🚀 QUICK VIEW SWITCHER BAR (ALWAYS VISIBLE AT TOP) */}
-      <div className="bg-slate-950 text-white px-3 sm:px-6 py-2 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs font-bold z-50">
-        <div className="flex items-center gap-2.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-          <span className="text-slate-300 hidden sm:inline">दृश्य (View):</span>
-          <div className="inline-flex rounded-xl p-0.5 bg-slate-900 border border-slate-700">
-            <button
-              onClick={() => setView('HOME')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                view === 'HOME'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              🌐 मुख्य वेबसाइट (Front Page)
-            </button>
-            <button
-              onClick={() => {
-                setAdminInitialStep('STEP_PASSBOOK_HUB');
-                setView('ADMIN');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                view === 'ADMIN'
-                  ? 'bg-amber-400 text-slate-950 shadow-sm'
-                  : 'text-amber-300 hover:text-white'
-              }`}
-            >
-              <span>🏢 एडमिन बायां पैनल (Left Panel)</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-bold">
-                🎯 पासबुक
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {view === 'HOME' ? (
-            <button
-              onClick={() => {
-                setAdminInitialStep('STEP_PASSBOOK_HUB');
-                setView('ADMIN');
-              }}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white text-xs font-black shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <Eye className="w-3.5 h-3.5 text-pink-200" />
-              <span>एडमिन बायां पैनल खोलें →</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => setView('HOME')}
-              className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 cursor-pointer"
-            >
-              वेबसाइट फ्रंट पेज देखें ✕
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Top Navigation Bar */}
       <Navbar
         onOpenAdmin={handleOpenAdmin}
@@ -239,7 +188,6 @@ function MainApp() {
           setMemberPortalInitialAccount('');
           setIsMemberPortalOpen(true);
         }}
-        onOpenPassbookControl={handleOpenPassbookAdmin}
         onScrollToBoard={scrollToBoard}
         onScrollToAddress={scrollToAddress}
         onScrollToCalculator={scrollToCalculator}
@@ -250,6 +198,11 @@ function MainApp() {
         <AdminPanel
           initialStep={adminInitialStep as any}
           onClose={() => {
+            setView('HOME');
+            setAdminInitialStep(undefined);
+          }}
+          onLogout={() => {
+            setIsAdminAuthenticated(false);
             setView('HOME');
             setAdminInitialStep(undefined);
           }}
@@ -299,7 +252,7 @@ function MainApp() {
                 </span>
               </div>
 
-              {/* Dedicated Front-Page Passbook Search & Name Dropdown (Light Pinkish Card) */}
+              {/* Dedicated Front-Page Passbook Search & Name Dropdown (Pure Member View - No Admin Controls) */}
               <div className="pt-2">
                 <div id="member-passbook-card" className="bg-white/95 rounded-3xl p-5 sm:p-6 border border-rose-300/80 shadow-lg shadow-pink-200/50 max-w-xl mx-auto text-left space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-rose-200/80 pb-3 gap-2">
@@ -312,129 +265,76 @@ function MainApp() {
                           सदस्य ऑनलाइन पासबुक
                         </h3>
                         <p className="text-[11px] text-rose-800 font-semibold">
-                          केवल प्रशासन द्वारा अधिकृत खाते ही ऑनलाइन देखे जा सकते हैं
+                          केवल अधिकृत खाते ही ऑनलाइन देखे जा सकते हैं
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-                        {enabledLoans.length} अधिकृत
+                      <span className="text-[10px] font-extrabold px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                        {enabledLoans.length} अधिकृत खाते उपलब्ध
                       </span>
-                      <button
-                        onClick={handleOpenPassbookAdmin}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-200/90 hover:bg-rose-300 text-rose-950 font-black text-xs border border-rose-400 transition-all cursor-pointer shadow-xs"
-                        title="बाएं पैनल में तय करें किसकी पासबुक दिखाना है"
-                      >
-                        <Settings className="w-3.5 h-3.5 text-rose-800" />
-                        <span>⚙️ पासबुक कंट्रोल</span>
-                      </button>
                     </div>
                   </div>
 
-                  {/* 🎯 Administrator Single-Point Control Notice Banner */}
-                  <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-white p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md border border-rose-800/80">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2 bg-rose-700/60 rounded-xl text-pink-200 shrink-0">
-                        <Settings className="w-4 h-4 text-pink-300" />
-                      </div>
-                      <div className="text-xs">
-                        <span className="font-black text-white block">
-                          🎯 पासबुक दृश्यता कंट्रोल (एडमिन बायां पैनल)
-                        </span>
-                        <span className="text-[11px] text-rose-200/90">
-                          तय करें कि वेबसाइट पर किसकी पासबुक दिखेगी और किसकी बंद रहेगी ({enabledLoans.length} चालू)
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleOpenPassbookAdmin}
-                      className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-black text-xs transition-all shadow-md cursor-pointer shrink-0 flex items-center justify-center gap-1.5"
-                    >
-                      <Eye className="w-3.5 h-3.5 text-emerald-200" />
-                      <span>बाएं पैनल में कंट्रोल खोलें →</span>
-                    </button>
-                  </div>
-
-                  {/* Option 1: Dropdown + Direct Button */}
+                  {/* Option 1: Dropdown Selection (ONLY Active Passbooks) */}
                   {enabledLoans.length === 0 ? (
-                    <div className="p-4 bg-rose-50 border-2 border-dashed border-rose-300 rounded-2xl text-center space-y-2.5">
+                    <div className="p-5 bg-rose-50 border-2 border-dashed border-rose-300 rounded-2xl text-center">
                       <p className="text-xs font-bold text-rose-950">
-                        ⚠️ वर्तमान में प्रशासन द्वारा किसी भी सदस्य की पासबुक वेबसाइट पर सक्षम (चालू) नहीं की गई है।
+                        ⚠️ वर्तमान में प्रशासन द्वारा किसी भी सदस्य की पासबुक वेबसाइट पर सक्षम (सक्रिय) नहीं की गई है।
                       </p>
-                      <button
-                        type="button"
-                        onClick={handleOpenPassbookAdmin}
-                        className="px-4 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-extrabold text-xs shadow-sm cursor-pointer inline-flex items-center gap-2"
-                      >
-                        <Eye className="w-4 h-4 text-pink-200" />
-                        <span>बाएं पैनल में जाकर पासबुक चालू करें</span>
-                      </button>
                     </div>
                   ) : (
-                    <>
-                      <div className="space-y-2">
-                        <label className="block text-xs font-bold text-rose-950">
-                          1. नाम चुनें एवं पासबुक देखें:
-                        </label>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <select
-                            value={selectedDropdownLoanId}
-                            onChange={(e) => {
-                              setSelectedDropdownLoanId(e.target.value);
-                              setFrontSearchFeedback(null);
-                            }}
-                            className="flex-1 px-3.5 py-2.5 bg-rose-50/60 border border-rose-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-400 cursor-pointer shadow-xs"
-                          >
-                            <option value="">-- अधिकृत सदस्य नाम चुनें ({enabledLoans.length} उपलब्ध) --</option>
-                            {enabledLoans.map((l) => (
-                              <option key={l.id} value={l.id}>
-                                {l.borrowerName} • खाता: {l.accountNo} (सदस्यता #{l.membershipNo})
-                              </option>
-                            ))}
-                          </select>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-xs font-extrabold text-rose-950">
+                            1. अधिकृत सदस्य नाम चुनें (ड्रॉपडाउन):
+                          </label>
+                          <span className="text-[11px] font-bold text-rose-700">
+                            {enabledLoans.length} सक्रिय पासबुक उपलब्ध
+                          </span>
+                        </div>
+                        <select
+                          value={selectedDropdownLoanId}
+                          onChange={(e) => handleFrontDropdownSelect(e.target.value)}
+                          className="w-full px-4 py-3 bg-rose-50/80 hover:bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer shadow-xs transition-colors"
+                        >
+                          <option value="">-- अधिकृत सदस्य का नाम चुनें ({enabledLoans.length} उपलब्ध) --</option>
+                          {enabledLoans.map((l) => (
+                            <option key={l.id} value={l.id}>
+                              {l.borrowerName} • खाता क्र.: {l.accountNo} (ऋण: ₹{l.loanAmount.toLocaleString('en-IN')})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
+                      {selectedFrontLoan ? (
+                        <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-300 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-xs font-bold text-emerald-950">
+                              वर्तमान में <strong>{selectedFrontLoan.borrowerName}</strong> (खाता: {selectedFrontLoan.accountNo}) की पासबुक प्रदर्शित है
+                            </span>
+                          </div>
                           <button
                             type="button"
                             onClick={() => {
-                              if (selectedDropdownLoanId) {
-                                handleFrontDropdownSelect(selectedDropdownLoanId);
-                              } else {
-                                setFrontSearchFeedback('कृपया पहले ड्रॉपडाउन से किसी सदस्य का नाम चुनें, फिर इस बटन पर क्लिक करें।');
-                              }
+                              setSelectedDropdownLoanId('');
+                              setFrontSearchFeedback(null);
                             }}
-                            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-700 via-rose-800 to-pink-700 hover:from-rose-800 hover:to-pink-800 text-white font-extrabold text-xs transition-all shadow-md shadow-rose-900/20 cursor-pointer shrink-0 flex items-center justify-center gap-1.5"
+                            className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px] cursor-pointer"
                           >
-                            <UserCheck className="w-4 h-4 text-pink-200" />
-                            <span>पासबुक दिखाएं</span>
+                            पासबुक बंद करें ✕
                           </button>
                         </div>
-                      </div>
-
-                      {/* Option 1.5: Direct Member 1-Click Buttons */}
-                      <div className="pt-2 border-t border-rose-100">
-                        <span className="text-[11px] font-extrabold text-rose-950 block mb-2">
-                          👇 या नीचे सीधे सदस्य के नाम पर क्लिक करके पासबुक खोलें:
-                        </span>
-                        <div className="flex flex-wrap gap-2">
-                          {enabledLoans.map((l) => (
-                            <button
-                              key={l.id}
-                              onClick={() => {
-                                setFrontSearchAccountNo(l.accountNo);
-                                setMemberPortalInitialAccount(l.accountNo);
-                                setIsMemberPortalOpen(true);
-                              }}
-                              className="px-3.5 py-2 rounded-xl bg-white hover:bg-rose-50 text-rose-950 font-bold text-xs flex items-center gap-2 border-2 border-rose-300 hover:border-rose-500 shadow-xs transition-all cursor-pointer hover:scale-102"
-                            >
-                              <UserCheck className="w-4 h-4 text-rose-600" />
-                              <span>{l.borrowerName} ({l.accountNo})</span>
-                              <span className="text-[10px] text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-md font-semibold">पासबुक देखें →</span>
-                            </button>
-                          ))}
+                      ) : (
+                        <div className="p-3 bg-rose-50/80 rounded-xl border border-rose-200 text-center">
+                          <p className="text-xs text-rose-900 font-semibold">
+                            👆 ऊपर दिए गए ड्रॉपडाउन से सदस्य का नाम चुनें। चुनते ही केवल उसी सदस्य की संपूर्ण पासबुक नीचे दिखाई देगी।
+                          </p>
                         </div>
-                      </div>
-                    </>
+                      )}
+                    </div>
                   )}
 
                   {/* Divider */}
@@ -460,7 +360,7 @@ function MainApp() {
                         <Search className="w-4 h-4 absolute left-3 top-3 text-rose-400" />
                         <input
                           type="text"
-                          placeholder="खाता क्रमांक (उदा. SB-2023-0213)..."
+                          placeholder="खाता क्रमांक (उदा. SB-2023-0101)..."
                           value={frontSearchAccountNo}
                           onChange={(e) => {
                             setFrontSearchAccountNo(e.target.value);
@@ -481,15 +381,31 @@ function MainApp() {
 
                   {/* Feedback Notice if any */}
                   {frontSearchFeedback && (
-                    <div className="p-3 rounded-xl bg-rose-100/90 border border-rose-300 text-rose-950 text-xs font-semibold flex items-start gap-2">
+                    <div className="p-3.5 rounded-xl bg-rose-100/90 border border-rose-300 text-rose-950 text-xs font-semibold flex items-start gap-2.5">
                       <AlertCircle className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
                       <p className="leading-snug">{frontSearchFeedback}</p>
                     </div>
                   )}
                 </div>
+
+                {/* 🎯 DISPLAY ONLY SELECTED PASSBOOK (जब ड्रॉपडाउन में सिलेक्ट करेंगे केवल वही दिखेगी) */}
+                {selectedFrontLoan && (
+                  <div id="selected-passbook-view" className="pt-8 max-w-5xl mx-auto text-left">
+                    <FrontPassbookViewer
+                      loan={selectedFrontLoan}
+                      societyInfo={societyInfo}
+                      onClose={() => {
+                        setSelectedDropdownLoanId('');
+                        setFrontSearchFeedback(null);
+                      }}
+                      onViewLedger={(loan) => setSelectedLedgerLoan(loan)}
+                      onPrintReceipt={(loan, emi) => setReceiptTarget({ loan, installment: emi })}
+                    />
+                  </div>
+                )}
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
 
           {/* 2. Sanchalak Mandal: Members marquee */}
           <div id="board-section" className="border-b border-rose-200/80 bg-gradient-to-r from-[#ffe4e9]/40 via-rose-50/70 to-[#ffe4e9]/40">
