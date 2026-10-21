@@ -1,0 +1,6 @@
+{
+  "name": "समाजोत्थान साई साख सहकारी संस्था मर्यादित, भोपाल",
+  "description": "समाजोत्थान साई साख सहकारी संस्था मर्यादित, भोपाल - ऋण प्रबंधन, सदस्य पोर्टल, ईएमआई लेजर, व वित्तीय एनालिटिक्स",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

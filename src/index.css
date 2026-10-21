@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Noto Sans Devanagari', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@keyframes marqueeSlow {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-slow {
+  display: flex;
+  width: max-content;
+  animation: marqueeSlow 32s linear infinite;
+}
+
+.animate-marquee-slow:hover {
+  animation-play-state: paused;
+}
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+}
