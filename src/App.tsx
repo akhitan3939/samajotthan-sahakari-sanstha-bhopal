@@ -21,6 +21,12 @@ import {
   Mail,
   Clock,
   UserCheck,
+  Search,
+  CreditCard,
+  AlertCircle,
+  ChevronRight,
+  ShieldCheck,
+  CheckCircle2,
 } from 'lucide-react';
 
 function MainApp() {
@@ -35,10 +41,14 @@ function MainApp() {
 
   // Modals State
   const [isMemberPortalOpen, setIsMemberPortalOpen] = useState(false);
+  const [memberPortalInitialAccount, setMemberPortalInitialAccount] = useState('');
   const [isAddLoanOpen, setIsAddLoanOpen] = useState(false);
-  const [isAdminCalculatorModalOpen, setIsAdminCalculatorModalOpen] = useState(false);
 
-  // No Dues & NOC Modal State
+  // Front-page Passbook Search States
+  const [frontSearchAccountNo, setFrontSearchAccountNo] = useState('');
+  const [frontSearchFeedback, setFrontSearchFeedback] = useState<string | null>(null);
+
+  // No Dues & NOC Modal State (Admin only)
   const [isNoDuesNocOpen, setIsNoDuesNocOpen] = useState(false);
   const [noDuesNocLoan, setNoDuesNocLoan] = useState<LoanRecord | null>(null);
 
@@ -102,12 +112,59 @@ function MainApp() {
     ? loans.find((l) => l.id === selectedLedgerLoan.id) || selectedLedgerLoan
     : null;
 
+  // Filter ONLY loans authorized by admin for online passbook
+  const enabledLoans = loans.filter((l) => l.passbookEnabled === true);
+
+  // Front-page account number search handler
+  const handleFrontAccountSearch = (accountQuery: string) => {
+    const q = accountQuery.trim().toLowerCase();
+    if (!q) {
+      setFrontSearchFeedback('कृपया खाता क्रमांक दर्ज करें।');
+      return;
+    }
+    const matched = loans.find(
+      (l) =>
+        l.accountNo.toLowerCase() === q ||
+        l.accountNo.toLowerCase().replace(/[^a-z0-9]/g, '').includes(q.replace(/[^a-z0-9]/g, '')) ||
+        l.membershipNo.toLowerCase() === q
+    );
+    if (!matched) {
+      setFrontSearchFeedback(`खाता क्रमांक '${accountQuery}' संस्था रिकॉर्ड में नहीं मिला। कृपया सही खाता क्रमांक दर्ज करें।`);
+      return;
+    }
+    if (!matched.passbookEnabled) {
+      setFrontSearchFeedback(
+        `खाता क्रमांक ${matched.accountNo} (${matched.borrowerName}) की ऑनलाइन पासबुक वर्तमान में संस्था प्रशासन द्वारा सक्षम नहीं की गई है। कृपया संस्था कार्यालय से संपर्क करें।`
+      );
+      return;
+    }
+    // Success: open modal with this account
+    setFrontSearchFeedback(null);
+    setMemberPortalInitialAccount(matched.accountNo);
+    setIsMemberPortalOpen(true);
+  };
+
+  // Front-page dropdown select handler
+  const handleFrontDropdownSelect = (loanId: string) => {
+    if (!loanId) return;
+    const found = enabledLoans.find((l) => l.id === loanId);
+    if (found) {
+      setFrontSearchFeedback(null);
+      setFrontSearchAccountNo(found.accountNo);
+      setMemberPortalInitialAccount(found.accountNo);
+      setIsMemberPortalOpen(true);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-rose-50/70 via-pink-50/40 to-rose-50/60 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-gradient-to-b from-[#fff0f3] via-[#fff5f7] to-[#ffeef2] text-slate-900 flex flex-col font-sans">
       {/* Top Navigation Bar */}
       <Navbar
         onOpenAdmin={handleOpenAdmin}
-        onOpenMemberPortal={() => setIsMemberPortalOpen(true)}
+        onOpenMemberPortal={() => {
+          setMemberPortalInitialAccount('');
+          setIsMemberPortalOpen(true);
+        }}
         onScrollToBoard={scrollToBoard}
         onScrollToAddress={scrollToAddress}
         onScrollToCalculator={scrollToCalculator}
@@ -130,8 +187,8 @@ function MainApp() {
       ) : (
         <main className="flex-1">
           {/* 1. Official Society Header (Light Pinkish Combination, Dignified & Clean) */}
-          <section className="bg-gradient-to-b from-rose-100/70 via-pink-50/50 to-white/90 border-b border-rose-200/80 py-12 sm:py-16">
-            <div className="max-w-4xl mx-auto px-4 text-center space-y-4">
+          <section className="bg-gradient-to-b from-[#ffe4e9]/80 via-[#fff0f3]/90 to-white/95 border-b border-rose-200 py-12 sm:py-16">
+            <div className="max-w-4xl mx-auto px-4 text-center space-y-5">
               <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-rose-100/90 border border-rose-300 text-rose-950 text-xs font-bold shadow-xs">
                 <span>पंजीयन क्र. {societyInfo.regNo} • म.प्र. शासन सहकारिता विभाग पंजीकृत</span>
               </div>
@@ -159,29 +216,112 @@ function MainApp() {
                 </span>
               </div>
 
-              {/* Single Essential Action for Members */}
-              <div className="pt-3">
-                <button
-                  onClick={() => setIsMemberPortalOpen(true)}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-rose-700 via-rose-800 to-pink-700 hover:from-rose-800 hover:to-pink-800 text-white font-extrabold text-xs transition-all cursor-pointer shadow-lg shadow-rose-900/20"
-                >
-                  <UserCheck className="w-4 h-4 text-pink-200" />
-                  <span>सदस्य ऑनलाइन पासबुक देखें</span>
-                </button>
+              {/* Dedicated Front-Page Passbook Search & Name Dropdown (Light Pinkish Card) */}
+              <div className="pt-2">
+                <div className="bg-white/95 rounded-3xl p-5 sm:p-6 border border-rose-300/80 shadow-lg shadow-pink-200/50 max-w-xl mx-auto text-left space-y-4">
+                  <div className="flex items-center justify-between border-b border-rose-200/80 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2.5 bg-rose-100 text-rose-800 rounded-xl">
+                        <CreditCard className="w-5 h-5 text-rose-700" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-extrabold text-slate-900 leading-tight">
+                          सदस्य ऑनलाइन पासबुक
+                        </h3>
+                        <p className="text-[11px] text-rose-800 font-semibold">
+                          केवल प्रशासन द्वारा अधिकृत खाते ही ऑनलाइन देखे जा सकते हैं
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                      {enabledLoans.length} अधिकृत खाते
+                    </span>
+                  </div>
+
+                  {/* Dropdown for Member Name */}
+                  <div>
+                    <label className="block text-xs font-bold text-rose-950 mb-1.5">
+                      1. नाम चुनें (Dropdown से सदस्य चुनें):
+                    </label>
+                    <select
+                      onChange={(e) => handleFrontDropdownSelect(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-rose-50/50 border border-rose-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-400 cursor-pointer shadow-xs"
+                      defaultValue=""
+                    >
+                      <option value="" disabled>
+                        -- अधिकृत सदस्य नाम चुनें ({enabledLoans.length} उपलब्ध) --
+                      </option>
+                      {enabledLoans.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.borrowerName} • खाता: {l.accountNo} (सदस्यता #{l.membershipNo})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="flex items-center gap-3 text-[11px] font-extrabold text-rose-400">
+                    <div className="flex-1 h-px bg-rose-200" />
+                    <span>अथवा (OR)</span>
+                    <div className="flex-1 h-px bg-rose-200" />
+                  </div>
+
+                  {/* Khata Kramank Search */}
+                  <div>
+                    <label className="block text-xs font-bold text-rose-950 mb-1.5">
+                      2. खाता क्रमांक से खोजें:
+                    </label>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleFrontAccountSearch(frontSearchAccountNo);
+                      }}
+                      className="flex gap-2"
+                    >
+                      <div className="relative flex-1">
+                        <Search className="w-4 h-4 absolute left-3 top-3 text-rose-400" />
+                        <input
+                          type="text"
+                          placeholder="खाता क्रमांक (उदा. SB-2023-0213)..."
+                          value={frontSearchAccountNo}
+                          onChange={(e) => {
+                            setFrontSearchAccountNo(e.target.value);
+                            setFrontSearchFeedback(null);
+                          }}
+                          className="w-full pl-9 pr-3 py-2.5 bg-white border border-rose-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-400 shadow-xs"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-800 to-pink-700 hover:from-rose-900 hover:to-pink-800 text-white font-bold text-xs transition-colors shrink-0 cursor-pointer shadow-sm shadow-rose-900/10"
+                      >
+                        पासबुक देखें
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Feedback Notice if any */}
+                  {frontSearchFeedback && (
+                    <div className="p-3 rounded-xl bg-rose-100/90 border border-rose-300 text-rose-950 text-xs font-semibold flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
+                      <p className="leading-snug">{frontSearchFeedback}</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </section>
 
           {/* 2. Sanchalak Mandal: Members marquee */}
-          <div id="board-section" className="border-b border-rose-200/60 bg-gradient-to-r from-pink-50/40 via-rose-50/60 to-pink-50/40">
+          <div id="board-section" className="border-b border-rose-200/80 bg-gradient-to-r from-[#ffe4e9]/40 via-rose-50/70 to-[#ffe4e9]/40">
             <BoardMarquee onManageClick={handleOpenAdmin} />
           </div>
 
           {/* 3. Official Loan Slab & EMI Calculator */}
-          <section id="loan-calculator-section" className="py-14 bg-gradient-to-b from-white via-rose-50/40 to-pink-50/50 border-t border-rose-200/80">
+          <section id="loan-calculator-section" className="py-14 bg-gradient-to-b from-white via-rose-50/40 to-[#fff0f3] border-t border-rose-200">
             <div className="max-w-6xl mx-auto px-4 sm:px-6">
               <div className="text-center max-w-2xl mx-auto mb-8">
-                <span className="text-xs font-bold uppercase tracking-widest text-rose-800 block mb-1">
+                <span className="text-xs font-extrabold uppercase tracking-widest text-rose-800 block mb-1">
                   पारदर्शी साख एवं किस्त गणना
                 </span>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -197,10 +337,10 @@ function MainApp() {
           </section>
 
           {/* 4. Branch Office Address & Contact (Clean, no redundant buttons) */}
-          <section id="branch-address-section" className="py-14 bg-gradient-to-b from-pink-50/30 to-rose-100/50 border-t border-rose-200/80">
+          <section id="branch-address-section" className="py-14 bg-gradient-to-b from-[#fff0f3] to-[#ffe4e9]/60 border-t border-rose-200">
             <div className="max-w-5xl mx-auto px-4 sm:px-6">
               <div className="text-center max-w-2xl mx-auto mb-8">
-                <span className="text-xs font-bold uppercase tracking-widest text-rose-800 block mb-1">
+                <span className="text-xs font-extrabold uppercase tracking-widest text-rose-800 block mb-1">
                   कार्यालय एवं शाखा संपर्क
                 </span>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -266,7 +406,10 @@ function MainApp() {
           {/* Footer */}
           <Footer
             onOpenAdmin={handleOpenAdmin}
-            onOpenMemberPortal={() => setIsMemberPortalOpen(true)}
+            onOpenMemberPortal={() => {
+              setMemberPortalInitialAccount('');
+              setIsMemberPortalOpen(true);
+            }}
             onOpenCalculator={scrollToCalculator}
             onScrollToSlabs={scrollToCalculator}
           />
@@ -333,7 +476,11 @@ function MainApp() {
       {/* MEMBER ONLINE PORTAL MODAL */}
       {isMemberPortalOpen && (
         <MemberPortalModal
-          onClose={() => setIsMemberPortalOpen(false)}
+          initialAccountNo={memberPortalInitialAccount}
+          onClose={() => {
+            setIsMemberPortalOpen(false);
+            setMemberPortalInitialAccount('');
+          }}
           onViewLedger={(loan) => {
             setIsMemberPortalOpen(false);
             setSelectedLedgerLoan(loan);
@@ -344,7 +491,7 @@ function MainApp() {
         />
       )}
 
-      {/* NO DUES & NOC CERTIFICATE MODAL */}
+      {/* NO DUES & NOC CERTIFICATE MODAL (Admin Only) */}
       {isNoDuesNocOpen && (
         <NoDuesNocModal
           initialLoan={noDuesNocLoan}

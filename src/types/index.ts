@@ -68,6 +68,7 @@ export interface LoanRecord {
   preEmiDeductions: PreEmiDeductions;
   installments: EmiInstallment[];
   status: LoanStatus;
+  passbookEnabled?: boolean;       // प्रशासक द्वारा ऑनलाइन पासबुक अधिकृत/सक्षम की गई है या नहीं
   isDefaulterByAdmin?: boolean;    // Admin explicit decision on defaulter status
   adminDefaulterReason?: string;   // Admin reason for marking or removing from defaulter
   createdAt: string;

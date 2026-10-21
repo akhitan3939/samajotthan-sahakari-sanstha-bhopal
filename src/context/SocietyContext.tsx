@@ -79,6 +79,7 @@ interface SocietyContextType {
   updateLoan: (loan: LoanRecord) => void;
   deleteLoan: (id: string) => boolean;
   toggleLockLoan: (id: string) => void;
+  togglePassbookEnabled: (loanId: string, enabled?: boolean) => void;
   
   // Payment Operations (Single & Multi-EMI)
   recordMultiPayment: (payload: MultiPaymentPayload) => boolean;
@@ -373,6 +374,25 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setDummyLoans((prev) =>
         prev.map((l) => (l.id === id ? { ...l, isLocked: !l.isLocked } : l))
       );
+    }
+  };
+
+  const togglePassbookEnabled = (loanId: string, enabled?: boolean) => {
+    const updater = (prev: LoanRecord[]) =>
+      prev.map((l) => {
+        if (l.id !== loanId) return l;
+        const nextState = enabled !== undefined ? enabled : !(l.passbookEnabled ?? false);
+        return {
+          ...l,
+          passbookEnabled: nextState,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+
+    if (mode === 'LIVE') {
+      setLiveLoans(updater);
+    } else {
+      setDummyLoans(updater);
     }
   };
 
@@ -671,6 +691,7 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateLoan,
         deleteLoan,
         toggleLockLoan,
+        togglePassbookEnabled,
         recordMultiPayment,
         recordLumpSumPayment,
         manualOverrideInstallment,

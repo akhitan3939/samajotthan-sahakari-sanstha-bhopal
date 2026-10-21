@@ -26,6 +26,7 @@ import {
   Trash2,
   Edit,
   Eye,
+  EyeOff,
   CheckCircle,
   Database,
   Download,
@@ -110,6 +111,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     updateFrontPageConfig,
     deleteLoan,
     toggleLockLoan,
+    togglePassbookEnabled,
     addBoardMember,
     updateBoardMember,
     deleteBoardMember,
@@ -764,6 +766,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <th className="p-3.5 text-right">वसूल मूलधन</th>
                       <th className="p-3.5 text-right">शेष मूलधन</th>
                       <th className="p-3.5 text-center">स्थिति</th>
+                      <th className="p-3.5 text-center">वेबसाइट पासबुक</th>
                       <th className="p-3.5 text-center">चरणबद्ध कार्रवाई (Next Actions)</th>
                     </tr>
                   </thead>
@@ -833,6 +836,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 नियमित
                               </span>
                             )}
+                          </td>
+
+                          {/* Front Passbook Visibility Toggle */}
+                          <td className="p-3.5 text-center font-sans">
+                            <button
+                              onClick={() => togglePassbookEnabled(loan.id)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                                loan.passbookEnabled
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 shadow-xs'
+                                  : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 shadow-xs'
+                              }`}
+                              title={
+                                loan.passbookEnabled
+                                  ? 'वेबसाइट पर पासबुक चालू है (बंद करने के लिए क्लिक करें)'
+                                  : 'वेबसाइट पर पासबुक बंद है (चालू करने के लिए क्लिक करें)'
+                              }
+                            >
+                              {loan.passbookEnabled ? (
+                                <>
+                                  <Eye className="w-3 h-3 text-emerald-600" />
+                                  <span>सक्षम (On)</span>
+                                </>
+                              ) : (
+                                <>
+                                  <EyeOff className="w-3 h-3 text-rose-500" />
+                                  <span>बंद (Off)</span>
+                                </>
+                              )}
+                            </button>
                           </td>
 
                           {/* Sequential, unconfusing action buttons */}
@@ -932,7 +964,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           )
                           .toFixed(2)}
                       </td>
-                      <td className="p-3.5 text-center" colSpan={2}>—</td>
+                      <td className="p-3.5 text-center" colSpan={3}>—</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -1179,6 +1211,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <span>वसूली नोटिस</span>
                           </button>
                         )}
+
+                        <button
+                          onClick={() => togglePassbookEnabled(activeSelectedLoan.id)}
+                          className={`px-3 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer border ${
+                            activeSelectedLoan.passbookEnabled
+                              ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-400/40'
+                              : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border-rose-400/40'
+                          }`}
+                          title="वेबसाइट पर इस सदस्य की पासबुक दिखेगी या नहीं"
+                        >
+                          {activeSelectedLoan.passbookEnabled ? (
+                            <>
+                              <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>वेबसाइट पासबुक: चालू</span>
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff className="w-3.5 h-3.5 text-rose-400" />
+                              <span>वेबसाइट पासबुक: बंद</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
 
