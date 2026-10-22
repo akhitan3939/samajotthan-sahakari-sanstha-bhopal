@@ -16,16 +16,31 @@ export const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({
   installment,
   onClose,
 }) => {
-  const { societyInfo } = useSociety();
+  const { societyInfo, boardMembers } = useSociety();
   const receiptNo = `REC-${new Date().getFullYear()}-${installment.emiNo}-${loan.membershipNo}`;
 
+  // Dynamically resolve designated manager from live boardMembers
+  const manager =
+    boardMembers.find(
+      (b) =>
+        b.role === 'PRABANDHAK' ||
+        b.designationHindi?.includes('प्रबंधक')
+    ) || {
+      name: 'श्रीमति तन्‍मयी कोरसने',
+      designationHindi: 'प्रबंधक',
+    };
+
   const handlePrint = () => {
+    document.body.classList.add('is-printing-modal');
     window.print();
+    setTimeout(() => {
+      document.body.classList.remove('is-printing-modal');
+    }, 1000);
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl border border-slate-200 overflow-hidden flex flex-col">
+    <div className="printable-modal fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="printable-modal-card bg-white rounded-2xl shadow-2xl w-full max-w-xl border border-slate-200 overflow-hidden flex flex-col">
         {/* Top Control Bar */}
         <div className="flex items-center justify-between px-6 py-3.5 bg-slate-900 text-white shrink-0 no-print">
           <div className="flex items-center gap-2">
@@ -208,7 +223,7 @@ export const PaymentReceiptModal: React.FC<PaymentReceiptModalProps> = ({
             <div>
               <div className="h-10"></div>
               <span className="font-semibold text-slate-800 border-t border-slate-400 pt-1 block">
-                अधिकृत प्रबंधक (श्रीमति तन्‍मयी कोरसने), साई साख सहकारी संस्था
+                अधिकृत {manager.designationHindi || 'प्रबंधक'} ({manager.name}), {societyInfo.name}
               </span>
             </div>
           </div>

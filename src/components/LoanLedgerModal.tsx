@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { EmiInstallment, LoanRecord } from '../types';
 import { calculateInstallmentTotals, formatINR } from '../utils/loanCalculations';
 import { useSociety } from '../context/SocietyContext';
+import { MemberLoanProgressGraph } from './MemberLoanProgressGraph';
+import { SocietyEmblem } from './SocietyEmblem';
 import {
   X,
   Printer,
@@ -34,14 +36,36 @@ export const LoanLedgerModal: React.FC<LoanLedgerModalProps> = ({
   onOpenPaymentEntry,
   onPrintReceipt,
 }) => {
-  const { manualOverrideInstallment, toggleLockLoan, setLoanDefaulterStatus } = useSociety();
+  const {
+    manualOverrideInstallment,
+    toggleLockLoan,
+    toggleInstallmentLock,
+    setLoanDefaulterStatus,
+    societyInfo,
+    boardMembers,
+  } = useSociety();
   const [editingEmiNo, setEditingEmiNo] = useState<number | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<EmiInstallment>>({});
   const [overrideReason, setOverrideReason] = useState('');
 
+  // Dynamically resolve designated manager from live boardMembers
+  const manager =
+    boardMembers?.find(
+      (b) =>
+        b.role === 'PRABANDHAK' ||
+        b.designationHindi?.includes('प्रबंधक')
+    ) || {
+      name: 'श्रीमति तन्‍मयी कोरसने',
+      designationHindi: 'प्रबंधक',
+    };
+
   const totals = calculateInstallmentTotals(loan.installments);
 
   const startEdit = (inst: EmiInstallment) => {
+    if (inst.isLocked) {
+      alert(`⚠️ किश्त #${inst.emiNo} लॉक्ड (सुरक्षित) है! संशोधन करने हेतु पहले 🔓 अनलॉक बटन दबाएं।`);
+      return;
+    }
     setEditingEmiNo(inst.emiNo);
     setEditFormData({
       dueDate: inst.dueDate,
@@ -68,18 +92,20 @@ export const LoanLedgerModal: React.FC<LoanLedgerModalProps> = ({
   };
 
   const handlePrint = () => {
+    document.body.classList.add('is-printing-modal');
     window.print();
+    setTimeout(() => {
+      document.body.classList.remove('is-printing-modal');
+    }, 1000);
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[96vh] flex flex-col border border-slate-200 overflow-hidden">
+    <div className="printable-modal fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="printable-modal-card bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[96vh] flex flex-col border border-slate-200 overflow-hidden">
         {/* Modal Top Bar */}
         <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white shrink-0 no-print">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-500 rounded-lg text-slate-950 font-bold">
-              <FileCheck className="w-5 h-5" />
-            </div>
+            <SocietyEmblem size="sm" showText={false} />
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold text-white">
@@ -143,8 +169,13 @@ export const LoanLedgerModal: React.FC<LoanLedgerModalProps> = ({
         <div className="p-4 sm:p-6 overflow-y-auto space-y-6">
           {/* Print Letterhead (Only visible during print) */}
           <div className="hidden print-only text-center border-b pb-4 mb-4">
-            <h1 className="text-xl font-bold">समाजोत्थान साई साख सहकारी संस्था मर्यादित, भोपाल</h1>
-            <p className="text-xs">पंजीयन क्र. भोपाल/ARCS/2014/1042 • पता: साई परिसर, कोलार रोड, भोपाल</p>
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <SocietyEmblem size="sm" showText={false} />
+              <div>
+                <h1 className="text-xl font-bold">{societyInfo.name}</h1>
+                <p className="text-xs">पंजीयन क्र. {societyInfo.regNo} • पता: {societyInfo.address}</p>
+              </div>
+            </div>
             <h2 className="text-base font-semibold mt-1">व्यक्तिगत ऋण खाता बही (Loan Ledger Sheet)</h2>
           </div>
 
@@ -294,6 +325,11 @@ export const LoanLedgerModal: React.FC<LoanLedgerModalProps> = ({
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* MEMBER LOAN PROGRESS GRAPH: इतना लिया था, इतना दिया, अब इतना बचा */}
+          <div className="no-print">
+            <MemberLoanProgressGraph loan={loan} />
           </div>
 
           {/* MAIN LOAN LEDGER TABLE (EXACT COLOR CODING OF IMAGE 1) */}
@@ -647,11 +683,32 @@ export const LoanLedgerModal: React.FC<LoanLedgerModalProps> = ({
                               </button>
                             )}
 
+                            {/* Per-Entry Lock / Unlock Button */}
+                            <button
+                              onClick={() => toggleInstallmentLock(loan.id, inst.emiNo)}
+                              className={`p-1 rounded transition-colors cursor-pointer ${
+                                inst.isLocked
+                                  ? 'text-emerald-700 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300'
+                                  : 'text-slate-400 hover:text-slate-800 hover:bg-slate-200'
+                              }`}
+                              title={inst.isLocked ? 'किश्त प्रविष्टि लॉक्ड है - अनलॉक करने के लिए क्लिक करें' : 'किश्त प्रविष्टि खुली है - सुरक्षित लॉक करने के लिए क्लिक करें'}
+                            >
+                              {inst.isLocked ? (
+                                <Lock className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Unlock className="w-3.5 h-3.5 text-slate-400" />
+                              )}
+                            </button>
+
                             {/* Manual Admin Override Edit Icon */}
                             <button
                               onClick={() => startEdit(inst)}
-                              className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-colors"
-                              title="प्रशासक द्वारा मैन्युअल संशोधन"
+                              className={`p-1 rounded transition-colors cursor-pointer ${
+                                inst.isLocked
+                                  ? 'text-slate-300 cursor-not-allowed'
+                                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'
+                              }`}
+                              title={inst.isLocked ? 'लॉक्ड है - संशोधन से पहले अनलॉक करें' : 'प्रशासक द्वारा मैन्युअल संशोधन'}
                             >
                               <Edit3 className="w-3 h-3" />
                             </button>
@@ -718,9 +775,11 @@ export const LoanLedgerModal: React.FC<LoanLedgerModalProps> = ({
 
           {/* Notes & Authority Signature box for print */}
           <div className="hidden print-only pt-8 grid grid-cols-3 gap-8 text-center text-xs">
-            <div className="border-t border-black pt-2">ऋणी के हस्ताक्षर</div>
-            <div className="border-t border-black pt-2">लेखापाल / लिपिक</div>
-            <div className="border-t border-black pt-2">प्रबंधक / अध्यक्ष, साई साख संस्था</div>
+            <div className="border-t border-black pt-2 font-medium">ऋणी के हस्ताक्षर</div>
+            <div className="border-t border-black pt-2 font-medium">लेखापाल / लिपिक</div>
+            <div className="border-t border-black pt-2 font-medium">
+              {manager.name} ({manager.designationHindi || 'प्रबंधक'}), {societyInfo.name}
+            </div>
           </div>
         </div>
       </div>

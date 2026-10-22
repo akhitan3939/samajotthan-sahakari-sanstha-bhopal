@@ -45,6 +45,7 @@ export interface EmiInstallment {
   paymentRemarks?: string;         // टिप्पणी (उदा. 'मूलधन जमा, ब्याज ₹559 बाद में देगा')
   isManualOverride?: boolean;      // Admin manually adjusted
   overrideReason?: string;
+  isLocked?: boolean;              // Individual installment entry lock
 }
 
 export interface LoanRecord {
@@ -71,6 +72,9 @@ export interface LoanRecord {
   passbookEnabled?: boolean;       // प्रशासक द्वारा ऑनलाइन पासबुक अधिकृत/सक्षम की गई है या नहीं
   isDefaulterByAdmin?: boolean;    // Admin explicit decision on defaulter status
   adminDefaulterReason?: string;   // Admin reason for marking or removing from defaulter
+  isArchived?: boolean;            // क्या यह सदस्य खाता आर्काइव (हटाया/निष्क्रिय) किया गया है
+  archivedAt?: string;             // आर्काइव की तिथि व समय
+  archivedReason?: string;         // आर्काइव करने का कारण (उदा. सदस्य द्वारा खाता बंद, स्थगित)
   createdAt: string;
   updatedAt: string;
   notes?: string;

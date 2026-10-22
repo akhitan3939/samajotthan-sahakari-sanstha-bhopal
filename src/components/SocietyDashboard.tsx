@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LoanRecord, SocietyInfo } from '../types';
 import {
   calculateComprehensiveStats,
   formatINR,
 } from '../utils/loanCalculations';
+import { MemberLoanProgressGraph } from './MemberLoanProgressGraph';
 import {
   TrendingUp,
   Coins,
@@ -62,6 +63,7 @@ export const SocietyDashboard: React.FC<SocietyDashboardProps> = ({
   onTogglePassbookEnabled,
 }) => {
   const stats = calculateComprehensiveStats(loans);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>(() => loans[0]?.id || '');
 
   // SVG Circular Gauge Calculations
   const radius = 54;
@@ -353,6 +355,61 @@ export const SocietyDashboard: React.FC<SocietyDashboardProps> = ({
             </strong>
           </div>
         </div>
+      </div>
+
+      {/* 2.5 MEMBER LOAN PROGRESS GRAPH IN ADMIN DASHBOARD (इतना लिया था, इतना दिया, अब इतना बचा) */}
+      <div className="bg-white rounded-3xl border-2 border-rose-300 p-5 sm:p-7 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rose-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-rose-600 text-white rounded-2xl shadow-sm">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black text-slate-950">
+                  📊 सदस्य ऋण स्थिति एवं आउटस्टैंडिंग विश्लेषण ग्राफ़
+                </h3>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-900 border border-rose-300">
+                  एडमिन दृश्य
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">
+                किसी भी सदस्य का चयन करें: <strong>'इतना लिया था, इतना दिया, अब इतना बचा'</strong> का स्पष्ट ग्राफ़ व बकाया तुरंत देखें।
+              </p>
+            </div>
+          </div>
+
+          {/* Member Selector Dropdown */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <label className="text-xs font-bold text-slate-700 whitespace-nowrap hidden sm:inline">
+              सदस्य चुनें:
+            </label>
+            <select
+              value={selectedMemberId || loans[0]?.id || ''}
+              onChange={(e) => setSelectedMemberId(e.target.value)}
+              className="w-full sm:w-72 p-2.5 border-2 border-rose-200 rounded-xl bg-slate-50 hover:bg-white text-xs font-bold text-slate-900 focus:outline-none focus:border-rose-500 cursor-pointer"
+            >
+              {loans.map((l) => (
+                <option key={l.id} value={l.id}>
+                  #{l.membershipNo} - {l.borrowerName} ({l.accountNo})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Render Graph for Selected Member */}
+        {(() => {
+          const currentSelected = loans.find((l) => l.id === selectedMemberId) || loans[0];
+          if (!currentSelected) {
+            return (
+              <div className="p-6 text-center text-xs text-slate-500 bg-slate-50 rounded-2xl">
+                वर्तमान में कोई सक्रिय ऋण खाता उपलब्ध नहीं है।
+              </div>
+            );
+          }
+          return <MemberLoanProgressGraph loan={currentSelected} />;
+        })()}
       </div>
 
       {/* 3. INSTITUTIONAL REVENUE & INCOME STREAMS (संस्था की वास्तविक आय एवं संचित कोष) */}

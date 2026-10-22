@@ -19,6 +19,7 @@ import {
   Award
 } from 'lucide-react';
 import { SocietyEmblem } from './SocietyEmblem';
+import { MemberLoanProgressGraph } from './MemberLoanProgressGraph';
 
 interface FrontPassbookViewerProps {
   loan: LoanRecord;
@@ -42,7 +43,11 @@ export const FrontPassbookViewer: React.FC<FrontPassbookViewerProps> = ({
   );
 
   const handlePrint = () => {
+    document.body.classList.add('is-printing-modal');
     window.print();
+    setTimeout(() => {
+      document.body.classList.remove('is-printing-modal');
+    }, 1000);
   };
 
   return (
@@ -141,7 +146,7 @@ export const FrontPassbookViewer: React.FC<FrontPassbookViewerProps> = ({
               <span className="text-[11px] font-bold text-rose-900/70 block">ऋण स्वीकृति तिथि व स्थिति:</span>
               <p className="text-xs font-mono font-bold text-slate-900 mt-0.5 flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                <span>{loan.sanctionDate}</span>
+                <span>{loan.loanDate}</span>
               </p>
               <span
                 className={`inline-block mt-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
@@ -204,6 +209,9 @@ export const FrontPassbookViewer: React.FC<FrontPassbookViewerProps> = ({
             </span>
           </div>
         </div>
+
+        {/* 3.5 Member Loan Progress & Outstanding Repayment Graph */}
+        <MemberLoanProgressGraph loan={loan} />
 
         {/* 4. Complete Installment & Transaction Schedule (The Passbook Table) */}
         <div className="space-y-3">
@@ -276,7 +284,7 @@ export const FrontPassbookViewer: React.FC<FrontPassbookViewerProps> = ({
                         {inst.totalPaid > 0 ? `₹ ${inst.totalPaid.toFixed(2)}` : '—'}
                       </td>
                       <td className="p-2.5 text-right text-slate-700">
-                        ₹ {inst.balancePrincipal.toFixed(2)}
+                        ₹ {inst.remainingPrincipal.toFixed(2)}
                       </td>
                       <td className="p-2.5 text-center font-sans">
                         {inst.status === 'PAID' ? (

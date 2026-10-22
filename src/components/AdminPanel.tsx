@@ -13,6 +13,8 @@ import { AdminCharts } from './AdminCharts';
 import { AdminReportsHub } from './AdminReportsHub';
 import { EmiCalculator } from './EmiCalculator';
 import { SocietyDashboard } from './SocietyDashboard';
+import { MemberLoanProgressGraph } from './MemberLoanProgressGraph';
+import { SocietyEmblem } from './SocietyEmblem';
 import {
   Users,
   CreditCard,
@@ -40,6 +42,7 @@ import {
   FileDown,
   ArrowDownRight,
   ArrowUpRight,
+  TrendingUp,
   TrendingDown,
   Coins,
   ShieldAlert,
@@ -65,8 +68,11 @@ import {
   ExternalLink,
   Award,
   ArrowRight,
+  ArrowLeft,
   Menu,
-  X
+  X,
+  Archive,
+  RotateCcw
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -90,6 +96,7 @@ type StepWorkflow =
   | 'STEP3_DEFAULTERS'
   | 'STEP4_CALCULATOR'
   | 'STEP5_REPORTS'
+  | 'STEP_ARCHIVE'
   | 'STEP6_BOARD_BACKUP'
   | 'STEP7_WEBSITE_SETTINGS';
 
@@ -109,6 +116,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     mode,
     setMode,
     loans,
+    archivedLoans,
+    allLoans,
     allLiveLoans,
     allDummyLoans,
     boardMembers,
@@ -122,7 +131,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     frontPageConfig,
     updateFrontPageConfig,
     deleteLoan,
+    archiveLoan,
+    restoreLoan,
+    deleteLoanPermanent,
     toggleLockLoan,
+    toggleInstallmentLock,
     togglePassbookEnabled,
     addBoardMember,
     updateBoardMember,
@@ -136,6 +149,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  // Archive & Recalculation States
+  const [loanToArchive, setLoanToArchive] = useState<LoanRecord | null>(null);
+  const [archiveReason, setArchiveReason] = useState<string>('सदस्य द्वारा खाता बंद / हटाया गया');
+  const [archiveSuccessMsg, setArchiveSuccessMsg] = useState<string | null>(null);
+  const [loanToDeletePermanent, setLoanToDeletePermanent] = useState<LoanRecord | null>(null);
+  const [archiveSearchFilter, setArchiveSearchFilter] = useState('');
+  const [previewGraphLoan, setPreviewGraphLoan] = useState<LoanRecord | null>(null);
 
   useEffect(() => {
     if (initialStep) {
@@ -246,6 +267,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Defaulters list (consecutive 3 missed installments)
   const defaulterLoans = loans.filter((loan) => classifyBorrower(loan) === 'DEFAULTER');
+
+  // Filtered archived loans (excluded from all society financial calculations)
+  const filteredArchivedLoans = archivedLoans.filter((loan) => {
+    if (!archiveSearchFilter.trim()) return true;
+    const q = archiveSearchFilter.toLowerCase().trim();
+    return (
+      loan.borrowerName.toLowerCase().includes(q) ||
+      loan.membershipNo.toLowerCase().includes(q) ||
+      loan.accountNo.toLowerCase().includes(q) ||
+      loan.phone.includes(q) ||
+      (loan.archivedReason && loan.archivedReason.toLowerCase().includes(q))
+    );
+  });
 
   // Export handlers
   const exportLoansCSV = () => {
@@ -490,6 +524,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       <div className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
         <div className="px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
+            <SocietyEmblem size="sm" showText={false} />
             {/* Mobile Sidebar Toggle Button */}
             <button
               onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
@@ -742,7 +777,38 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <span>वित्तीय चार्ट व ऑडिट रिपोर्ट</span>
               </button>
 
-              {/* Step 6: Board & Backup */}
+              {/* Step 6: Archived Loans Hub */}
+              <button
+                onClick={() => {
+                  setActiveStep('STEP_ARCHIVE');
+                }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                  activeStep === 'STEP_ARCHIVE'
+                    ? 'bg-amber-700 text-white shadow-md ring-2 ring-amber-600/40'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 rounded-md bg-amber-500 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                    6
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Archive className="w-3.5 h-3.5 text-amber-400" />
+                    <span>आर्काइव ऋण फ़ाइल</span>
+                  </div>
+                </div>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${
+                    archivedLoans.length > 0
+                      ? 'bg-amber-400 text-slate-950'
+                      : 'bg-slate-800 text-slate-400'
+                  }`}
+                >
+                  {archivedLoans.length}
+                </span>
+              </button>
+
+              {/* Step 7: Board & Backup */}
               <button
                 onClick={() => {
                   setActiveStep('STEP6_BOARD_BACKUP');
@@ -754,12 +820,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 }`}
               >
                 <span className="w-5 h-5 rounded-md bg-slate-500 text-white flex items-center justify-center text-[10px] font-black">
-                  6
+                  7
                 </span>
                 <span>संचालक मंडल व डेटा लॉक</span>
               </button>
 
-              {/* Step 7: Website Settings */}
+              {/* Step 8: Website Settings */}
               <button
                 onClick={() => {
                   setActiveStep('STEP7_WEBSITE_SETTINGS');
@@ -771,7 +837,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 }`}
               >
                 <span className="w-5 h-5 rounded-md bg-purple-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
-                  7
+                  8
                 </span>
                 <Globe className="w-3.5 h-3.5 text-purple-300" />
                 <span>वेबसाइट व संपर्क सेटिंग्स</span>
@@ -838,6 +904,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
         {/* RIGHT MAIN CONTENT AREA */}
         <main className="flex-1 min-w-0 p-3 sm:p-5 lg:p-7 space-y-6 overflow-y-auto">
+          {/* ARCHIVE / RECALCULATION SUCCESS TOAST */}
+          {archiveSuccessMsg && (
+            <div className="p-4 bg-emerald-50 border-2 border-emerald-400 rounded-2xl text-emerald-950 flex items-center justify-between gap-3 shadow-md animate-fadeIn">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <p className="font-extrabold text-xs sm:text-sm">{archiveSuccessMsg}</p>
+              </div>
+              <button
+                onClick={() => setArchiveSuccessMsg(null)}
+                className="text-emerald-700 hover:text-emerald-950 p-1 text-xs font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
         {/* STEP 0: DEDICATED SOCIETY DASHBOARD (NO TABLE) */}
         {activeStep === 'STEP0_DASHBOARD' && (
           <SocietyDashboard
@@ -1237,12 +1319,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="border rounded-xl px-3 py-2 text-xs bg-white font-semibold shrink-0"
                 >
-                  <option value="ALL">सभी खाते ({loans.length})</option>
+                  <option value="ALL">सभी सक्रिय खाते ({loans.length})</option>
                   <option value="REGULAR">नियमित सही देने वाले ({stats.sahiSeDeneWale})</option>
                   <option value="WATCHLIST">विलंबित (दिक्कत वाले) ({stats.dikkatKarneWale})</option>
                   <option value="DEFAULTER">डिफ़ॉल्टर (3+ मिस) ({stats.defaultersCount})</option>
                   <option value="CLOSED">पूर्ण चुकता ({stats.closedCount})</option>
                 </select>
+
+                <button
+                  onClick={() => setActiveStep('STEP_ARCHIVE')}
+                  className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                  title="आर्काइव में हटाए गए ऋण खाते देखें"
+                >
+                  <Archive className="w-3.5 h-3.5 text-amber-700" />
+                  <span>📦 आर्काइव फ़ाइल ({archivedLoans.length})</span>
+                </button>
               </div>
             </div>
 
@@ -1374,6 +1465,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 1. लेजर
                               </button>
 
+                              {/* Action 1.5: Member Loan Progress Graph */}
+                              <button
+                                onClick={() => setPreviewGraphLoan(loan)}
+                                className="px-2.5 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-950 border border-rose-300 font-bold text-[10px] transition-colors cursor-pointer flex items-center gap-1"
+                                title="ऋण विश्लेषण ग्राफ़: इतना लिया था, इतना दिया, अब इतना बचा"
+                              >
+                                <TrendingUp className="w-3 h-3 text-rose-700" />
+                                <span>ग्राफ़</span>
+                              </button>
+
                               {/* Action 2: Collect EMI */}
                               <button
                                 onClick={() => onOpenPaymentEntry(loan)}
@@ -1405,7 +1506,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 </button>
                               )}
 
-                              {/* Action 4: Toggle Lock */}
+                              {/* Action 4: Archive / Remove Loan */}
+                              <button
+                                onClick={() => {
+                                  setLoanToArchive(loan);
+                                  setArchiveReason('सदस्य द्वारा खाता बंद / हटाया गया');
+                                }}
+                                className="px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 font-bold text-[10px] transition-colors cursor-pointer flex items-center gap-1"
+                                title="ऋण खाता हटाएं / आर्काइव करें (वित्तीय गणना से बाहर)"
+                              >
+                                <Archive className="w-3 h-3 text-amber-800" />
+                                <span>हटाएं / आर्काइव</span>
+                              </button>
+
+                              {/* Action 5: Toggle Lock */}
                               <button
                                 onClick={() => toggleLockLoan(loan.id)}
                                 className="p-1 rounded text-slate-500 hover:text-slate-800 cursor-pointer"
@@ -1765,6 +1879,92 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </span>
                       </div>
                     </div>
+
+                    {/* Visual Progress Graph in Step 2: इतना लिया था, इतना दिया, अब इतना बचा */}
+                    <div className="pt-2">
+                      <MemberLoanProgressGraph loan={activeSelectedLoan} />
+                    </div>
+
+                    {/* Quick Installment Table Preview with Lock status and Pay/Edit triggers */}
+                    <div className="bg-slate-900/90 rounded-xl p-3 border border-white/10 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-bold text-white flex-wrap gap-2">
+                        <span className="flex items-center gap-1.5 text-amber-300">
+                          <Coins className="w-4 h-4 text-emerald-400" />
+                          <span>किश्त भुगतान व व्यक्तिगत लॉक स्थिति (Installments Overview):</span>
+                        </span>
+                        <button
+                          onClick={() => onOpenPaymentEntry(activeSelectedLoan)}
+                          className="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                        >
+                          <Coins className="w-3.5 h-3.5" />
+                          <span>चेकबॉक्स चयन भुगतान फॉर्म खोलें ➔</span>
+                        </button>
+                      </div>
+
+                      <div className="overflow-x-auto max-h-52 border border-white/10 rounded-lg">
+                        <table className="w-full text-left font-mono text-[11px]">
+                          <thead className="bg-slate-950 text-slate-300 font-bold sticky top-0">
+                            <tr>
+                              <th className="p-2">ईएमआई</th>
+                              <th className="p-2">देय तिथि</th>
+                              <th className="p-2 text-right">देय मूलधन</th>
+                              <th className="p-2 text-right">देय ब्याज</th>
+                              <th className="p-2 text-right">कुल देय</th>
+                              <th className="p-2 text-center">स्थिति</th>
+                              <th className="p-2 text-center">🔒 लॉक</th>
+                              <th className="p-2 text-center font-sans">कार्रवाई</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/5 text-slate-200">
+                            {activeSelectedLoan.installments.map((inst) => {
+                              const isPaid = inst.status === 'PAID' || inst.status === 'DELAYED_PAID' || (inst.totalPaid || 0) >= inst.totalDue;
+                              const isLocked = inst.isLocked === true;
+                              return (
+                                <tr key={inst.emiNo} className="hover:bg-white/5 transition-colors">
+                                  <td className="p-2 font-bold font-sans">#{inst.emiNo}</td>
+                                  <td className="p-2 whitespace-nowrap">{inst.dueDate}</td>
+                                  <td className="p-2 text-right">₹ {Math.round(inst.duePrincipal).toLocaleString('en-IN')}</td>
+                                  <td className="p-2 text-right text-amber-300">₹ {Math.round(inst.dueInterest).toLocaleString('en-IN')}</td>
+                                  <td className="p-2 text-right font-bold text-white">₹ {Math.round(inst.totalDue).toLocaleString('en-IN')}</td>
+                                  <td className="p-2 text-center font-sans">
+                                    {isPaid ? (
+                                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
+                                        जमा (₹{Math.round(inst.totalPaid)})
+                                      </span>
+                                    ) : (
+                                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 whitespace-nowrap">
+                                        देय
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-2 text-center">
+                                    <button
+                                      onClick={() => toggleInstallmentLock(activeSelectedLoan.id, inst.emiNo)}
+                                      className={`p-1 rounded text-xs transition-colors cursor-pointer ${
+                                        isLocked
+                                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                                          : 'bg-white/10 text-slate-400 hover:text-white'
+                                      }`}
+                                      title={isLocked ? 'लॉक्ड है - अनलॉक करने के लिए क्लिक करें' : 'खुला है - लॉक करने के लिए क्लिक करें'}
+                                    >
+                                      {isLocked ? <Lock className="w-3.5 h-3.5 text-emerald-400" /> : <Unlock className="w-3.5 h-3.5" />}
+                                    </button>
+                                  </td>
+                                  <td className="p-2 text-center font-sans">
+                                    <button
+                                      onClick={() => onOpenPaymentEntry(activeSelectedLoan, inst.emiNo)}
+                                      className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] cursor-pointer whitespace-nowrap"
+                                    >
+                                      {isPaid ? 'संशोधन' : 'जमा करें'}
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 );
               })()}
@@ -2111,10 +2311,243 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 ⬅ पिछला चरण 4: ऋण कैलकुलेटर
               </button>
               <button
+                onClick={() => setActiveStep('STEP_ARCHIVE')}
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition-colors cursor-pointer shadow-sm"
+              >
+                <span>अगला चरण 6: आर्काइव ऋण फ़ाइल ➔</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP_ARCHIVE: ARCHIVED LOANS MANAGEMENT & RECALCULATION CENTER */}
+        {activeStep === 'STEP_ARCHIVE' && (
+          <div className="space-y-6">
+            {/* Header Banner */}
+            <div className="bg-gradient-to-r from-amber-950 via-slate-900 to-slate-950 text-white rounded-3xl p-6 sm:p-8 border-2 border-amber-500/40 shadow-xl relative overflow-hidden">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold">
+                    <Archive className="w-3.5 h-3.5" />
+                    <span>निष्क्रिय व सुरक्षित आर्काइव ऋण फ़ाइल</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-white">
+                    आर्काइव ऋण खाते एवं वित्तीय री-कैलकुलेशन केंद्र
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                    यहाँ वे सदस्य व ऋण खाते सुरक्षित हैं जिन्हें मुख्य सक्रिय सूची से हटाया गया है। इनकी राशि संस्था के कुल लोन व वसूली गणना में <strong>शामिल नहीं</strong> है। 
+                    किसी भी खाते को <strong>'पुनः सक्रिय (Restore)'</strong> करने पर सभी वित्तीय गणनाएं तुरंत री-कैलकुलेट हो जाती हैं।
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setActiveStep('STEP1_LOANS')}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>सक्रिय ऋण खातों पर जाएं</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 3 Overview Stat Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-white/10 mt-6">
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
+                  <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider block">
+                    कुल आर्काइव सदस्य
+                  </span>
+                  <div className="text-2xl font-black text-white mt-1">
+                    {archivedLoans.length} खाते
+                  </div>
+                  <span className="text-[10px] text-slate-400">
+                    मुख्य सक्रिय गणना से पूरी तरह बाहर
+                  </span>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
+                  <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider block">
+                    आर्काइव में मूलधन
+                  </span>
+                  <div className="text-2xl font-black text-white mt-1">
+                    {formatINR(archivedLoans.reduce((acc, l) => acc + l.loanAmount, 0))}
+                  </div>
+                  <span className="text-[10px] text-slate-400">
+                    स्वीकृत ऋण राशि (गणना में अप्रभावित)
+                  </span>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
+                  <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider block">
+                    आर्काइव शेष मूलधन
+                  </span>
+                  <div className="text-2xl font-black text-white mt-1">
+                    {formatINR(
+                      archivedLoans.reduce((acc, l) => {
+                        const t = calculateInstallmentTotals(l.installments);
+                        return acc + Math.max(0, l.loanAmount - t.totalPaidPrincipal);
+                      }, 0)
+                    )}
+                  </div>
+                  <span className="text-[10px] text-slate-400">
+                    अतिदेय/शेष राशि जो संस्था देनदारी में नहीं गिनी जा रही
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="आर्काइव में खोजें (नाम, खाता, मोबाइल)..."
+                  value={archiveSearchFilter}
+                  onChange={(e) => setArchiveSearchFilter(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 border rounded-xl text-xs bg-slate-50 focus:bg-white focus:outline-none font-medium"
+                />
+              </div>
+
+              <div className="text-xs text-slate-500 font-semibold">
+                दिख रहे हैं: <strong className="text-slate-900">{filteredArchivedLoans.length}</strong> / कुल आर्काइव: {archivedLoans.length}
+              </div>
+            </div>
+
+            {/* Table of Archived Loans */}
+            {filteredArchivedLoans.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3 shadow-xs">
+                <div className="w-14 h-14 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+                  <Archive className="w-7 h-7" />
+                </div>
+                <h4 className="font-extrabold text-base text-slate-900">
+                  {archivedLoans.length === 0
+                    ? 'वर्तमान में कोई भी ऋण खाता आर्काइव में नहीं है'
+                    : 'खोज के अनुसार कोई आर्काइव खाता नहीं मिला'}
+                </h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  {archivedLoans.length === 0
+                    ? 'संस्था के सभी सदस्य वर्तमान में सक्रिय गणना में शामिल हैं। यदि आप किसी ऋणी का खाता हटाना या स्थगित करना चाहें तो "ऋण खाते व लेजर" सूची में जाकर "हटाएं / आर्काइव" बटन दबाएं।'
+                    : 'कृपया अन्य नाम या खाता क्रमांक से खोज का प्रयास करें।'}
+                </p>
+                {archivedLoans.length === 0 && (
+                  <button
+                    onClick={() => setActiveStep('STEP1_LOANS')}
+                    className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors inline-flex items-center gap-2 cursor-pointer mt-2"
+                  >
+                    <span>सक्रिय ऋण खातों की सूची देखें</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-900 text-white font-bold text-[11px]">
+                      <tr>
+                        <th className="p-3.5">सदस्यता व खाता</th>
+                        <th className="p-3.5">ऋणी का नाम व फोन</th>
+                        <th className="p-3.5">स्वीकृत ऋण</th>
+                        <th className="p-3.5">शेष मूलधन</th>
+                        <th className="p-3.5">आर्काइव दिनांक</th>
+                        <th className="p-3.5">आर्काइव कारण / विवरण</th>
+                        <th className="p-3.5 text-center">री-कैलकुलेशन व कार्य (Actions)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                      {filteredArchivedLoans.map((loan) => {
+                        const t = calculateInstallmentTotals(loan.installments);
+                        const rem = Math.max(0, loan.loanAmount - t.totalPaidPrincipal);
+                        return (
+                          <tr key={loan.id} className="hover:bg-amber-50/40 transition-colors">
+                            <td className="p-3.5 font-bold text-slate-900 whitespace-nowrap">
+                              <span className="text-amber-700">#{loan.membershipNo}</span>
+                              <span className="block text-[10px] text-slate-500 font-normal">
+                                {loan.accountNo}
+                              </span>
+                            </td>
+                            <td className="p-3.5 font-sans">
+                              <strong className="text-slate-950 text-xs block font-bold">
+                                {loan.borrowerName}
+                              </strong>
+                              <span className="text-slate-500 text-[10px] font-mono">
+                                {loan.phone}
+                              </span>
+                            </td>
+                            <td className="p-3.5 font-bold text-slate-900 text-xs">
+                              {formatINR(loan.loanAmount)}
+                            </td>
+                            <td className="p-3.5 font-bold text-amber-800">
+                              ₹ {rem.toFixed(2)}
+                            </td>
+                            <td className="p-3.5 font-sans text-slate-600 text-[11px] whitespace-nowrap">
+                              {loan.archivedAt ? new Date(loan.archivedAt).toLocaleDateString('hi-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'आर्काइव्ड'}
+                            </td>
+                            <td className="p-3.5 font-sans text-slate-700 text-xs max-w-xs">
+                              <span className="inline-block px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-950 text-[11px] font-semibold">
+                                {loan.archivedReason || 'प्रशासक द्वारा आर्काइव'}
+                              </span>
+                            </td>
+                            <td className="p-3.5 text-center whitespace-nowrap font-sans">
+                              <div className="flex items-center justify-center gap-2">
+                                {/* ACTION 1: RESTORE & RECALCULATE */}
+                                <button
+                                  onClick={() => {
+                                    restoreLoan(loan.id);
+                                    setArchiveSuccessMsg(
+                                      `सदस्य '${loan.borrowerName}' (खाता: ${loan.accountNo}) को पुनः सक्रिय कर दिया गया है! संस्था के सभी वित्तीय आंकड़े स्वतः रीकैलकुलेट हो चुके हैं।`
+                                    );
+                                    setTimeout(() => setArchiveSuccessMsg(null), 6000);
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                  title="इस सदस्य को पुनः सक्रिय करें और वित्तीय गणनाएं रीकैलकुलेट करें"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                  <span>पुनः सक्रिय करें (Recalculate)</span>
+                                </button>
+
+                                {/* ACTION 2: VIEW LEDGER */}
+                                <button
+                                  onClick={() => onOpenLedger(loan)}
+                                  className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors cursor-pointer"
+                                  title="लेजर इतिहास देखें"
+                                >
+                                  लेजर
+                                </button>
+
+                                {/* ACTION 3: PERMANENT DELETE */}
+                                <button
+                                  onClick={() => setLoanToDeletePermanent(loan)}
+                                  className="p-1.5 rounded-xl text-rose-600 hover:bg-rose-50 hover:text-rose-800 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                                  title="हमेशा के लिए डिलीट करें (Permanent Delete)"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Guided Actions */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+              <button
+                onClick={() => setActiveStep('STEP5_REPORTS')}
+                className="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer transition-colors"
+              >
+                ⬅ पिछला चरण 5: वित्तीय चार्ट व ऑडिट
+              </button>
+              <button
                 onClick={() => setActiveStep('STEP6_BOARD_BACKUP')}
                 className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition-colors cursor-pointer shadow-sm"
               >
-                <span>अगला चरण 6: संचालक मंडल व बैकअप ➔</span>
+                <span>अगला चरण 7: संचालक मंडल व बैकअप ➔</span>
               </button>
             </div>
           </div>
@@ -3255,6 +3688,247 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 >
                   <span>चरण 1: ऋण खाते व लेजर ➔</span>
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: ARCHIVE CONFIRMATION MODAL */}
+        {loanToArchive && (
+          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full border-2 border-amber-400 overflow-hidden animate-fadeIn">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-amber-950 via-slate-900 to-amber-950 text-white p-6 border-b border-amber-800">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black">
+                      <Archive className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-white">
+                        ऋण खाता आर्काइव (हटाना) करें
+                      </h3>
+                      <p className="text-xs text-amber-300">
+                        वित्तीय गणना से अप्रभावित (Recalculate) सुरक्षित प्रक्रिया
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setLoanToArchive(null)}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-4 text-xs">
+                {/* Target Borrower Card */}
+                <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-bold text-amber-900 text-xs">
+                      #{loanToArchive.membershipNo} • खाता: {loanToArchive.accountNo}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-200 text-amber-900">
+                      स्वीकृत: {formatINR(loanToArchive.loanAmount)}
+                    </span>
+                  </div>
+                  <div className="font-extrabold text-slate-950 text-sm">
+                    {loanToArchive.borrowerName}
+                  </div>
+                  <div className="text-slate-600 flex items-center gap-2">
+                    <span>📱 {loanToArchive.phone}</span>
+                    <span>•</span>
+                    <span>अवधि: {loanToArchive.tenureMonths} माह</span>
+                  </div>
+                </div>
+
+                {/* Clear Financial Explanation */}
+                <div className="p-4 rounded-2xl bg-slate-900 text-slate-200 space-y-2.5 border border-slate-800">
+                  <h4 className="font-extrabold text-amber-400 text-xs flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>आर्काइव करने से क्या होगा?</span>
+                  </h4>
+                  <ul className="space-y-1.5 text-[11px] text-slate-300 leading-relaxed list-disc list-inside">
+                    <li>
+                      यह सदस्य खाता मुख्य सक्रिय ऋण सूची से हटकर <strong>'आर्काइव फ़ाइल'</strong> में सुरक्षित रहेगा।
+                    </li>
+                    <li>
+                      संस्था के <strong>डैशबोर्ड, कुल वितरित ऋण, शेष वसूली व देय ब्याज से इसकी राशि शून्य</strong> हो जाएगी (Recalculate)।
+                    </li>
+                    <li>
+                      वेबसाइट के फ्रंट पेज पासबुक चयन से भी यह खाता तुरंत <strong>हट (बंद)</strong> जाएगा।
+                    </li>
+                    <li>
+                      <strong>कभी भी पुनः सक्रिय:</strong> आप जब चाहें 'आर्काइव ऋण फ़ाइल' मेनू में जाकर 'पुनः सक्रिय करें' बटन दबाकर इसे वापस जोड़ सकते हैं, जिससे सारे वित्तीय आंकड़े स्वतः <strong>Recalculate</strong> हो जाएंगे।
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Reason Selection */}
+                <div>
+                  <label className="block text-slate-800 font-extrabold mb-1.5 text-xs">
+                    आर्काइव करने का कारण (Select Reason):
+                  </label>
+                  <select
+                    value={archiveReason}
+                    onChange={(e) => setArchiveReason(e.target.value)}
+                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white text-xs font-semibold"
+                  >
+                    <option value="सदस्य द्वारा खाता बंद / हटाया गया">सदस्य द्वारा खाता बंद / हटाया गया</option>
+                    <option value="ऋण पूर्ण चुकता एवं खाता विलोपित">ऋण पूर्ण चुकता एवं खाता विलोपित</option>
+                    <option value="दोहराव / गलत प्रविष्टि होने के कारण हटाया गया">दोहराव / गलत प्रविष्टि होने के कारण हटाया गया</option>
+                    <option value="जांच अथवा ऑडिट हेतु अस्थाई रूप से निलंबित">जांच अथवा ऑडिट हेतु अस्थाई रूप से निलंबित</option>
+                    <option value="अन्य प्रशासनिक कारण">अन्य प्रशासनिक कारण</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setLoanToArchive(null)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs cursor-pointer"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const name = loanToArchive.borrowerName;
+                    const acc = loanToArchive.accountNo;
+                    archiveLoan(loanToArchive.id, archiveReason);
+                    setLoanToArchive(null);
+                    setArchiveSuccessMsg(
+                      `ऋण खाता '${name}' (${acc}) को सुरक्षित आर्काइव में भेज दिया गया है। सभी कुल वित्तीय आंकड़े व देय राशि स्वतः रीकैलकुलेट हो चुकी है!`
+                    );
+                    setTimeout(() => setArchiveSuccessMsg(null), 6000);
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs flex items-center gap-2 cursor-pointer shadow-md hover:shadow-lg transition-all"
+                >
+                  <Archive className="w-4 h-4" />
+                  <span>हां, आर्काइव करें और गणना रीकैलकुलेट करें</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: PERMANENT DELETE CONFIRMATION MODAL */}
+        {loanToDeletePermanent && (
+          <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full border-2 border-rose-500 overflow-hidden animate-fadeIn">
+              <div className="bg-rose-950 text-white p-5 border-b border-rose-800 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Trash2 className="w-5 h-5 text-rose-400" />
+                  <h3 className="text-base font-black text-white">
+                    स्थाई रूप से डिलीट करें (Permanent Delete)
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setLoanToDeletePermanent(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4 text-xs">
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-950">
+                  <p className="font-extrabold">
+                    चेतावनी: यह क्रिया अपूरणीय है!
+                  </p>
+                  <p className="text-[11px] mt-1 text-rose-800">
+                    सदस्य '{loanToDeletePermanent.borrowerName}' (खाता: {loanToDeletePermanent.accountNo}) का ऋण रिकॉर्ड सिस्टम से हमेशा के लिए मिट जाएगा।
+                  </p>
+                </div>
+                <p className="text-slate-600 text-xs">
+                  यदि आप इसे भविष्य के लिए सुरक्षित रखना चाहते हैं, तो इसे आर्काइव में ही रहने दें।
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setLoanToDeletePermanent(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold cursor-pointer"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const name = loanToDeletePermanent.borrowerName;
+                    deleteLoanPermanent(loanToDeletePermanent.id);
+                    setLoanToDeletePermanent(null);
+                    setArchiveSuccessMsg(
+                      `सदस्य '${name}' का रिकॉर्ड स्थाई रूप से हटा दिया गया है।`
+                    );
+                    setTimeout(() => setArchiveSuccessMsg(null), 5000);
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black cursor-pointer shadow-md"
+                >
+                  स्थाई रूप से हटाएं
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: MEMBER LOAN PROGRESS GRAPH PREVIEW */}
+        {previewGraphLoan && (
+          <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full border-2 border-rose-300 overflow-hidden animate-fadeIn my-auto">
+              <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-white p-4 sm:p-5 border-b border-rose-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-rose-600 rounded-xl">
+                    <TrendingUp className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-white">
+                      ऋण भुगतान व आउटस्टैंडिंग विश्लेषण: {previewGraphLoan.borrowerName}
+                    </h3>
+                    <p className="text-xs text-rose-200 font-mono">
+                      खाता क्र. {previewGraphLoan.accountNo} • सदस्यता #{previewGraphLoan.membershipNo}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPreviewGraphLoan(null)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-5 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                <MemberLoanProgressGraph loan={previewGraphLoan} />
+
+                <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+                  <div className="text-xs text-slate-500 font-medium">
+                    स्वीकृत ऋण राशि: <strong className="text-slate-900 font-mono">{formatINR(previewGraphLoan.loanAmount)}</strong> • अवधि: {previewGraphLoan.tenureMonths} माह
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const target = previewGraphLoan;
+                        setPreviewGraphLoan(null);
+                        onOpenLedger(target);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer shadow-xs"
+                    >
+                      पूर्ण लेजर बही खोलें →
+                    </button>
+                    <button
+                      onClick={() => setPreviewGraphLoan(null)}
+                      className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs cursor-pointer"
+                    >
+                      बंद करें
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { LoanRecord, SocietyInfo } from '../types';
 import { SocietyEmblem } from './SocietyEmblem';
 import { calculateInstallmentTotals, formatINR } from '../utils/loanCalculations';
@@ -41,6 +41,32 @@ export const NoDuesNocModal: React.FC<NoDuesNocModalProps> = ({
   const context = useSociety();
   const loans = propLoans || context.loans;
   const societyInfo = propSocietyInfo || context.societyInfo;
+  const boardMembers = context.boardMembers || [];
+
+  // Designated President from Live Data
+  const defaultPresident = useMemo(() => {
+    return (
+      boardMembers.find((m) => m.role === 'ADHYAKSHA' || m.designationHindi?.includes('अध्यक्ष')) ||
+      boardMembers[0] || {
+        name: 'श्री राजेश शर्मा',
+        designationHindi: 'संस्था अध्यक्ष',
+        role: 'ADHYAKSHA',
+      }
+    );
+  }, [boardMembers]);
+
+  // Designated Manager from Live Data
+  const defaultManager = useMemo(() => {
+    return (
+      boardMembers.find((m) => m.role === 'PRABANDHAK' || m.designationHindi?.includes('प्रबंधक')) ||
+      boardMembers.find((m) => m.role === 'UPADHYAKSHA') ||
+      boardMembers[boardMembers.length - 1] || {
+        name: 'श्रीमति तन्‍मयी कोरसने',
+        designationHindi: 'शाखा प्रबंधक',
+        role: 'PRABANDHAK',
+      }
+    );
+  }, [boardMembers]);
 
   const [selectedLoanId, setSelectedLoanId] = useState<string>(
     initialLoan ? initialLoan.id : loans[0]?.id || ''
@@ -87,7 +113,11 @@ export const NoDuesNocModal: React.FC<NoDuesNocModalProps> = ({
   const isFullyPaid = remainingPrincipal <= 0.01;
 
   const handlePrint = () => {
+    document.body.classList.add('is-printing-modal');
     window.print();
+    setTimeout(() => {
+      document.body.classList.remove('is-printing-modal');
+    }, 800);
   };
 
   const handleCopyText = () => {
@@ -125,9 +155,9 @@ ${societyInfo.name}
 
 अतः यह अदेयता प्रमाण पत्र (No Dues Certificate) जारी किया जाता है।
 
-(हस्ताक्षर शाखा प्रबंधक)                 (हस्ताक्षर अध्यक्ष)
-श्रीमति तन्मयी कोरसने                   श्री राजेश शर्मा
-समाजोत्थान साई साख सहकारी संस्था मर्यादित, भोपाल
+(हस्ताक्षर ${defaultManager.designationHindi || 'शाखा प्रबंधक'})                 (हस्ताक्षर ${defaultPresident.designationHindi || 'अध्यक्ष'})
+${defaultManager.name}                   ${defaultPresident.name}
+${societyInfo.name}
 ============================================================
 `;
     } else {
@@ -162,9 +192,9 @@ ${societyInfo.name}
         selectedLoan.advanceChequeNo || '—'
       } विमुक्त किए जाते हैं।
 
-(हस्ताक्षर शाखा प्रबंधक)                 (हस्ताक्षर अध्यक्ष)
-श्रीमति तन्मयी कोरसने                   श्री राजेश शर्मा
-समाजोत्थान साई साख सहकारी संस्था मर्यादित, भोपाल
+(हस्ताक्षर ${defaultManager.designationHindi || 'शाखा प्रबंधक'})                 (हस्ताक्षर ${defaultPresident.designationHindi || 'अध्यक्ष'})
+${defaultManager.name}                   ${defaultPresident.name}
+${societyInfo.name}
 ============================================================
 `;
     }
@@ -175,8 +205,8 @@ ${societyInfo.name}
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 overflow-y-auto printable-modal">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden my-auto printable-modal-card">
         {/* Modal Top Header (Non-print) */}
         <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0 print:hidden">
           <div className="flex items-center gap-3">
@@ -690,40 +720,33 @@ ${societyInfo.name}
                       </div>
                     </div>
 
-                    {/* Official Stamp & Signatures */}
-                    <div className="pt-12 mt-10 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-8 font-sans">
+                    {/* Official Signatures (NO SEAL / MOHAR - Pure Official Signature Lines) */}
+                    <div className="pt-8 mt-6 border-t border-slate-300 grid grid-cols-2 gap-8 font-sans print-page-fit">
                       {/* Left: Manager */}
                       <div className="text-center space-y-1">
-                        <div className="h-10 flex items-center justify-center">
-                          <span className="text-xs text-slate-400 italic">[डिजिटल हस्ताक्षरित]</span>
-                        </div>
-                        <p className="font-bold text-xs text-slate-950">
-                          (श्रीमति तन्मयी कोरसने)
+                        <div className="h-10 border-b border-dotted border-slate-400 w-48 mx-auto mb-2"></div>
+                        <p className="font-bold text-xs sm:text-sm text-slate-950">
+                          ({defaultManager.name})
                         </p>
-                        <p className="text-[11px] text-slate-600 font-medium">
-                          शाखा प्रबंधक (Branch Manager)
+                        <p className="text-[11px] text-slate-700 font-semibold">
+                          {defaultManager.designationHindi || 'शाखा प्रबंधक'}
                         </p>
-                      </div>
-
-                      {/* Middle: Official Seal */}
-                      <div className="text-center flex flex-col items-center justify-center p-2 rounded-full border-2 border-dashed border-amber-600/60 w-24 h-24">
-                        <Stamp className="w-5 h-5 text-amber-700 mb-0.5" />
-                        <span className="text-[9px] font-extrabold text-amber-900 leading-tight uppercase">
-                          संस्था मुहर
-                        </span>
-                        <span className="text-[8px] text-slate-500">भोपाल/2014</span>
+                        <p className="text-[10px] text-slate-500">
+                          {societyInfo.name}
+                        </p>
                       </div>
 
                       {/* Right: President */}
                       <div className="text-center space-y-1">
-                        <div className="h-10 flex items-center justify-center">
-                          <span className="text-xs text-slate-400 italic">[डिजिटल हस्ताक्षरित]</span>
-                        </div>
-                        <p className="font-bold text-xs text-slate-950">
-                          (श्री राजेश शर्मा)
+                        <div className="h-10 border-b border-dotted border-slate-400 w-48 mx-auto mb-2"></div>
+                        <p className="font-bold text-xs sm:text-sm text-slate-950">
+                          ({defaultPresident.name})
                         </p>
-                        <p className="text-[11px] text-slate-600 font-medium">
-                          संस्था अध्यक्ष (President)
+                        <p className="text-[11px] text-slate-700 font-semibold">
+                          {defaultPresident.designationHindi || 'संस्था अध्यक्ष'}
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                          {societyInfo.name}
                         </p>
                       </div>
                     </div>

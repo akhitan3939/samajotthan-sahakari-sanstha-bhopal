@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { BannerSlide, BoardMember, EmiInstallment, FrontPageConfig, LoanRecord, LoanStatus, PaymentStatus, SocietyInfo } from '../types';
 import {
   DEFAULT_FRONT_PAGE_CONFIG,
@@ -54,7 +54,9 @@ export interface MultiPaymentPayload {
 interface SocietyContextType {
   mode: WorkingMode;
   setMode: (mode: WorkingMode) => void;
-  loans: LoanRecord[];
+  loans: LoanRecord[];            // All active non-archived loans (counted in all calculations)
+  archivedLoans: LoanRecord[];    // All archived loans (excluded from calculations)
+  allLoans: LoanRecord[];         // Complete list (active + archived)
   allLiveLoans: LoanRecord[];
   allDummyLoans: LoanRecord[];
   boardMembers: BoardMember[];
@@ -78,6 +80,9 @@ interface SocietyContextType {
   addLoan: (loanData: Omit<LoanRecord, 'id' | 'isDummy' | 'createdAt' | 'updatedAt'>) => LoanRecord;
   updateLoan: (loan: LoanRecord) => void;
   deleteLoan: (id: string) => boolean;
+  archiveLoan: (id: string, reason?: string) => boolean;
+  restoreLoan: (id: string) => boolean;
+  deleteLoanPermanent: (id: string) => boolean;
   toggleLockLoan: (id: string) => void;
   togglePassbookEnabled: (loanId: string, enabled?: boolean) => void;
   
@@ -96,6 +101,8 @@ interface SocietyContextType {
     updatedFields: Partial<EmiInstallment>,
     reason?: string
   ) => boolean;
+  toggleInstallmentLock: (loanId: string, emiNo: number) => boolean;
+  toggleAllInstallmentsLock: (loanId: string, lock: boolean) => boolean;
   
   // Defaulter Admin Decision
   setLoanDefaulterStatus: (loanId: string, isDefaulter: boolean, reason?: string) => void;
@@ -309,17 +316,104 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [mode]);
 
+  // SERVER-SIDE DATABASE PERSISTENCE (Ensures all users & shared links see live updates)
+  const hasInitializedServer = useRef(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchServerData = async () => {
+      try {
+        const res = await fetch('/api/society-data');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json && json.success && json.data) {
+          const d = json.data;
+          if (Array.isArray(d.liveLoans) && d.liveLoans.length > 0 && isMounted) {
+            setLiveLoans(d.liveLoans.map(normalizeLoanDeductions));
+          }
+          if (Array.isArray(d.dummyLoans) && d.dummyLoans.length > 0 && isMounted) {
+            setDummyLoans(d.dummyLoans.map(normalizeLoanDeductions));
+          }
+          if (Array.isArray(d.boardMembers) && d.boardMembers.length > 0 && isMounted) {
+            setBoardMembers(d.boardMembers);
+          }
+          if (d.societyInfo && typeof d.societyInfo === 'object' && isMounted) {
+            setSocietyInfo((prev) => ({ ...prev, ...d.societyInfo }));
+          }
+          if (Array.isArray(d.bannerSlides) && d.bannerSlides.length > 0 && isMounted) {
+            setBannerSlides(d.bannerSlides);
+          }
+          if (d.frontPageConfig && typeof d.frontPageConfig === 'object' && isMounted) {
+            setFrontPageConfig((prev) => ({ ...prev, ...d.frontPageConfig }));
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch server live data, using local storage cache:', err);
+      } finally {
+        hasInitializedServer.current = true;
+      }
+    };
+
+    fetchServerData();
+
+    // Listen for tab focus to refresh real-time changes made by other admins/users
+    const handleFocus = () => {
+      fetchServerData();
+    };
+    window.addEventListener('focus', handleFocus);
+    const interval = setInterval(fetchServerData, 15000);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Sync state changes to server-side JSON file
+  useEffect(() => {
+    if (!hasInitializedServer.current) return;
+
+    const timer = setTimeout(() => {
+      try {
+        fetch('/api/society-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            liveLoans,
+            dummyLoans,
+            boardMembers,
+            societyInfo,
+            bannerSlides,
+            frontPageConfig,
+            mode,
+            updatedAt: new Date().toISOString(),
+          }),
+        }).catch((e) => console.warn('Server sync error:', e));
+      } catch (e) {
+        console.warn('Server sync error:', e);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [liveLoans, dummyLoans, boardMembers, societyInfo, bannerSlides, frontPageConfig, mode]);
+
   const setMode = (newMode: WorkingMode) => {
     setModeState(newMode);
   };
 
   const currentLoans = mode === 'LIVE' ? liveLoans : dummyLoans;
+  // ONLY active (non-archived) loans are counted in calculations across the entire application!
+  const activeLoans = currentLoans.filter((l) => !l.isArchived);
+  // Archived loans are stored separately and do NOT count towards any financial totals
+  const archivedLoans = currentLoans.filter((l) => l.isArchived === true);
 
   const addLoan = (loanData: Omit<LoanRecord, 'id' | 'isDummy' | 'createdAt' | 'updatedAt'>): LoanRecord => {
     const isDummy = mode === 'DUMMY';
     const now = new Date().toISOString();
     const newRecord: LoanRecord = {
       ...loanData,
+      isArchived: false,
       id: `loan-${isDummy ? 'dummy' : 'live'}-${Date.now()}`,
       isDummy,
       createdAt: now,
@@ -353,16 +447,68 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const deleteLoan = (id: string): boolean => {
+  // ARCHIVE LOAN: Safely moves member to Archive and removes their calculation from all totals
+  const archiveLoan = (loanId: string, reason?: string): boolean => {
+    const now = new Date().toISOString();
+    const updater = (prev: LoanRecord[]) =>
+      prev.map((l) => {
+        if (l.id !== loanId) return l;
+        return {
+          ...l,
+          isArchived: true,
+          isLocked: false, // Automatically unlock when archiving
+          archivedAt: now,
+          archivedReason: reason || 'सदस्य खाता प्रशासक द्वारा आर्काइव (हटाया) गया',
+          passbookEnabled: false, // Automatically disable passbook on front page when archived!
+          updatedAt: now,
+        };
+      });
+
     if (mode === 'LIVE') {
-      const target = liveLoans.find((l) => l.id === id);
-      if (target?.isLocked) return false;
-      setLiveLoans((prev) => prev.filter((l) => l.id !== id));
+      setLiveLoans(updater);
+    } else {
+      setDummyLoans(updater);
+    }
+    return true;
+  };
+
+  // RESTORE LOAN: Reactivates archived loan and immediately recalculates all totals!
+  const restoreLoan = (loanId: string): boolean => {
+    const now = new Date().toISOString();
+    const updater = (prev: LoanRecord[]) =>
+      prev.map((l) => {
+        if (l.id !== loanId) return l;
+        return {
+          ...l,
+          isArchived: false,
+          archivedAt: undefined,
+          archivedReason: undefined,
+          updatedAt: now,
+        };
+      });
+
+    if (mode === 'LIVE') {
+      setLiveLoans(updater);
+    } else {
+      setDummyLoans(updater);
+    }
+    return true;
+  };
+
+  // PERMANENT DELETE (Irreversible)
+  const deleteLoanPermanent = (loanId: string): boolean => {
+    if (mode === 'LIVE') {
+      setLiveLoans((prev) => prev.filter((l) => l.id !== loanId));
       return true;
     } else {
-      setDummyLoans((prev) => prev.filter((l) => l.id !== id));
+      setDummyLoans((prev) => prev.filter((l) => l.id !== loanId));
       return true;
     }
+  };
+
+  // Default delete: Soft-delete into Archive so no historical record is ever accidentally lost!
+  const deleteLoan = (id: string): boolean => {
+    return archiveLoan(id, 'प्रशासक द्वारा ऋण सूची से हटाया गया');
   };
 
   const toggleLockLoan = (id: string) => {
@@ -584,17 +730,97 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const loan = loanList.find((l) => l.id === loanId);
     if (!loan) return false;
 
-    const updatedInstallments = loan.installments.map((inst) => {
+    // Apply updates to target installment
+    const updatedRaw = loan.installments.map((inst) => {
       if (inst.emiNo === emiNo) {
+        const isResetToPending = updatedFields.status === 'PENDING';
         return {
           ...inst,
           ...updatedFields,
+          totalPaid: isResetToPending ? 0 : (updatedFields.totalPaid !== undefined ? updatedFields.totalPaid : inst.totalPaid),
+          paidPrincipal: isResetToPending ? 0 : (updatedFields.paidPrincipal !== undefined ? updatedFields.paidPrincipal : inst.paidPrincipal),
+          paidInterest: isResetToPending ? 0 : (updatedFields.paidInterest !== undefined ? updatedFields.paidInterest : inst.paidInterest),
+          depositDate: isResetToPending ? null : (updatedFields.depositDate !== undefined ? updatedFields.depositDate : inst.depositDate),
+          penaltyCollected: isResetToPending ? 0 : (updatedFields.penaltyCollected !== undefined ? updatedFields.penaltyCollected : inst.penaltyCollected),
           isManualOverride: true,
-          overrideReason: reason || 'प्रशासक द्वारा मैन्युअल समायोजन',
+          overrideReason: reason || 'प्रशासक द्वारा मैन्युअल संशोधन',
         };
       }
       return inst;
     });
+
+    // Recompute running remaining principal down the schedule
+    let runningPrincipal = loan.loanAmount;
+    const updatedInstallments = updatedRaw.map((inst) => {
+      const paidP = inst.paidPrincipal || 0;
+      runningPrincipal = Math.max(0, runningPrincipal - paidP);
+      return {
+        ...inst,
+        remainingPrincipal: runningPrincipal,
+      };
+    });
+
+    const allPaid = updatedInstallments.every((i) => i.status === 'PAID' || i.status === 'DELAYED_PAID');
+    const defaulterCheck = evaluateDefaulterStatus(updatedInstallments);
+
+    let nextStatus: LoanStatus = loan.status;
+    if (allPaid) {
+      nextStatus = 'CLOSED';
+    } else if (loan.isDefaulterByAdmin === true) {
+      nextStatus = 'DEFAULTER';
+    } else if (loan.isDefaulterByAdmin === false) {
+      nextStatus = 'ACTIVE';
+    } else if (defaulterCheck.isDefaulter) {
+      nextStatus = 'DEFAULTER';
+    } else if (loan.status === 'CLOSED' && !allPaid) {
+      nextStatus = 'ACTIVE';
+    }
+
+    const updatedLoan: LoanRecord = {
+      ...loan,
+      installments: updatedInstallments,
+      status: nextStatus,
+      updatedAt: new Date().toISOString(),
+    };
+
+    updateLoan(updatedLoan);
+    return true;
+  };
+
+  const toggleInstallmentLock = (loanId: string, emiNo: number): boolean => {
+    const loanList = mode === 'LIVE' ? liveLoans : dummyLoans;
+    const loan = loanList.find((l) => l.id === loanId);
+    if (!loan) return false;
+
+    const updatedInstallments = loan.installments.map((inst) => {
+      if (inst.emiNo === emiNo) {
+        return {
+          ...inst,
+          isLocked: !inst.isLocked,
+        };
+      }
+      return inst;
+    });
+
+    const updatedLoan: LoanRecord = {
+      ...loan,
+      installments: updatedInstallments,
+      updatedAt: new Date().toISOString(),
+    };
+
+    updateLoan(updatedLoan);
+    return true;
+  };
+
+  const toggleAllInstallmentsLock = (loanId: string, lock: boolean): boolean => {
+    const loanList = mode === 'LIVE' ? liveLoans : dummyLoans;
+    const loan = loanList.find((l) => l.id === loanId);
+    if (!loan) return false;
+
+    const updatedInstallments = loan.installments.map((inst) => ({
+      ...inst,
+      isLocked: lock,
+    }));
 
     const updatedLoan: LoanRecord = {
       ...loan,
@@ -674,7 +900,9 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       value={{
         mode,
         setMode,
-        loans: currentLoans,
+        loans: activeLoans,
+        archivedLoans,
+        allLoans: currentLoans,
         allLiveLoans: liveLoans,
         allDummyLoans: dummyLoans,
         boardMembers,
@@ -690,11 +918,16 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addLoan,
         updateLoan,
         deleteLoan,
+        archiveLoan,
+        restoreLoan,
+        deleteLoanPermanent,
         toggleLockLoan,
         togglePassbookEnabled,
         recordMultiPayment,
         recordLumpSumPayment,
         manualOverrideInstallment,
+        toggleInstallmentLock,
+        toggleAllInstallmentsLock,
         setLoanDefaulterStatus,
         addBoardMember,
         updateBoardMember,

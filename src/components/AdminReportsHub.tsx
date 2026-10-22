@@ -8,6 +8,7 @@ import {
   exportToCSV,
   formatINR,
 } from '../utils/loanCalculations';
+import { SocietyEmblem } from './SocietyEmblem';
 import {
   FileText,
   Download,
@@ -298,16 +299,19 @@ export const AdminReportsHub: React.FC<AdminReportsHubProps> = ({
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-5">
         {/* Top Control Bar of Active Report */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              {activeReport === 'MONTHLY_RECOVERY' && 'मासिक ऋण किश्त वसूली एवं ब्याज रजिस्टर'}
-              {activeReport === 'DEFAULTER_AGEING' && 'डिफ़ॉल्टर खाता आयु-वार एवं जमानतदार देयता रजिस्टर'}
-              {activeReport === 'PRE_EMI_AUDIT' && 'ऋण वितरण समय अग्रिम कटौती एवं संस्था कोष ऑडिट'}
-              {activeReport === 'SLAB_BALANCE_SHEET' && 'ऋण स्लैबवार पूंजी आवंटन एवं वसूली बैलेंस शीट'}
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              समाजोत्थान साई साख सहकारी संस्था मर्यादित, भोपाल • अधिकृत वित्तीय विवरण
-            </p>
+          <div className="flex items-center gap-3">
+            <SocietyEmblem size="sm" showText={false} />
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                {activeReport === 'MONTHLY_RECOVERY' && 'मासिक ऋण किश्त वसूली एवं ब्याज रजिस्टर'}
+                {activeReport === 'DEFAULTER_AGEING' && 'डिफ़ॉल्टर खाता आयु-वार एवं जमानतदार देयता रजिस्टर'}
+                {activeReport === 'PRE_EMI_AUDIT' && 'ऋण वितरण समय अग्रिम कटौती एवं संस्था कोष ऑडिट'}
+                {activeReport === 'SLAB_BALANCE_SHEET' && 'ऋण स्लैबवार पूंजी आवंटन एवं वसूली बैलेंस शीट'}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                समाजोत्थान साई साख सहकारी संस्था मर्यादित, भोपाल • अधिकृत वित्तीय विवरण
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

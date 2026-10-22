@@ -124,9 +124,13 @@ function MainApp() {
     }, 100);
   };
 
-  // Keep selectedLedgerLoan synchronized with context updates
+  // Keep selectedLedgerLoan and paymentTarget synchronized with context updates
   const activeLedgerLoan = selectedLedgerLoan
     ? loans.find((l) => l.id === selectedLedgerLoan.id) || selectedLedgerLoan
+    : null;
+
+  const activePaymentLoan = paymentTarget
+    ? loans.find((l) => l.id === paymentTarget.loan.id) || paymentTarget.loan
     : null;
 
   // Filter ONLY loans authorized by admin for online passbook
@@ -179,10 +183,19 @@ function MainApp() {
     }
   };
 
+  const isAnyPrintableModalOpen = Boolean(
+    isNoDuesNocOpen ||
+    noticeTarget ||
+    receiptTarget ||
+    activeLedgerLoan ||
+    isMemberPortalOpen
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff0f3] via-[#fff5f7] to-[#ffeef2] text-slate-900 flex flex-col font-sans">
-      {/* Top Navigation Bar */}
-      <Navbar
+      <div className={`app-background-screen flex flex-col flex-1 ${isAnyPrintableModalOpen ? 'print:hidden' : ''}`}>
+        {/* Top Navigation Bar */}
+        <Navbar
         onOpenAdmin={handleOpenAdmin}
         onOpenMemberPortal={() => {
           setMemberPortalInitialAccount('');
@@ -510,6 +523,7 @@ function MainApp() {
           />
         </main>
       )}
+      </div>
 
       {/* ADMIN AUTHENTICATION LOGIN MODAL */}
       {isAdminLoginOpen && (
@@ -540,9 +554,9 @@ function MainApp() {
       )}
 
       {/* MULTI-EMI PAYMENT ENTRY MODAL */}
-      {paymentTarget && (
+      {paymentTarget && activePaymentLoan && (
         <PaymentEntryModal
-          loan={paymentTarget.loan}
+          loan={activePaymentLoan}
           initialEmiNo={paymentTarget.emiNo}
           onClose={() => setPaymentTarget(null)}
           onSuccessPrintReceipt={(l, emi) => {

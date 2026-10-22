@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { LoanRecord } from '../types';
 import { calculateInstallmentTotals, evaluateDefaulterStatus, formatINR } from '../utils/loanCalculations';
-import { SOCIETY_INFO } from '../data/initialData';
+import { useSociety } from '../context/SocietyContext';
 import { SocietyEmblem } from './SocietyEmblem';
-import { X, Printer, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { X, Printer, ShieldAlert } from 'lucide-react';
 
 interface DefaulterNoticeModalProps {
   loan: LoanRecord;
@@ -14,22 +14,39 @@ export const DefaulterNoticeModal: React.FC<DefaulterNoticeModalProps> = ({
   loan,
   onClose,
 }) => {
+  const { societyInfo, boardMembers } = useSociety();
   const totals = calculateInstallmentTotals(loan.installments);
   const defaulterInfo = evaluateDefaulterStatus(loan.installments);
   const remainingPrincipal = Math.max(0, loan.loanAmount - totals.totalPaidPrincipal);
   const noticeNo = `नोटिस/वसूली/${new Date().getFullYear()}/${loan.membershipNo}`;
 
   const overdueInstallments = loan.installments.filter(
-    (i) => i.status === 'OVERDUE' || (i.delayDays > 0 && i.totalPaid < i.totalDue)
+    (i) => i.status === 'OVERDUE' || (i.delayDays > 0 && (i.totalPaid || 0) < i.totalDue)
   );
 
+  // Designated Manager from Live Data
+  const manager = useMemo(() => {
+    return (
+      boardMembers.find((m) => m.role === 'PRABANDHAK' || m.designationHindi?.includes('प्रबंधक')) ||
+      boardMembers.find((m) => m.role === 'UPADHYAKSHA') ||
+      boardMembers[boardMembers.length - 1] || {
+        name: 'श्रीमति तन्‍मयी कोरसने',
+        designationHindi: 'शाखा प्रबंधक',
+      }
+    );
+  }, [boardMembers]);
+
   const handlePrint = () => {
+    document.body.classList.add('is-printing-modal');
     window.print();
+    setTimeout(() => {
+      document.body.classList.remove('is-printing-modal');
+    }, 800);
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[96vh] flex flex-col border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto printable-modal">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[96vh] flex flex-col border border-slate-200 overflow-hidden printable-modal-card">
         {/* Top Control Bar */}
         <div className="flex items-center justify-between px-6 py-3.5 bg-rose-950 text-white shrink-0 no-print">
           <div className="flex items-center gap-2">
@@ -56,22 +73,22 @@ export const DefaulterNoticeModal: React.FC<DefaulterNoticeModalProps> = ({
         </div>
 
         {/* Printable Notice Paper */}
-        <div className="p-8 sm:p-12 overflow-y-auto text-slate-900 text-xs leading-relaxed space-y-4 font-serif">
+        <div className="p-8 sm:p-12 overflow-y-auto text-slate-900 text-xs leading-relaxed space-y-4 font-serif print-page-fit">
           {/* Letterhead */}
           <div className="text-center border-b-2 border-slate-900 pb-4 mb-4">
             <div className="flex items-center justify-center gap-3 mb-2">
               <SocietyEmblem size="sm" showText={false} />
               <div>
                 <h1 className="text-lg sm:text-xl font-extrabold font-sans text-slate-900">
-                  {SOCIETY_INFO.name}
+                  {societyInfo.name}
                 </h1>
                 <p className="text-[11px] font-sans font-semibold text-slate-700">
-                  पंजीयन क्रमांक: {SOCIETY_INFO.regNo} (म.प्र. सहकारी संस्थाएं अधिनियम 1960)
+                  पंजीयन क्रमांक: {societyInfo.regNo} (म.प्र. सहकारी संस्थाएं अधिनियम 1960)
                 </p>
               </div>
             </div>
             <p className="text-[10px] text-slate-600 font-sans">
-              कार्यालय: {SOCIETY_INFO.address} • दूरभाष: {SOCIETY_INFO.phone}
+              कार्यालय: {societyInfo.address} • दूरभाष: {societyInfo.phone}
             </p>
             <div className="mt-3 inline-block px-4 py-1 rounded-sm bg-rose-100 text-rose-900 font-sans font-bold text-xs border border-rose-300 uppercase tracking-wider">
               ऋण बकाया वसूली मांग सूचना पत्र / डिफॉल्टर नोटिस
@@ -85,18 +102,32 @@ export const DefaulterNoticeModal: React.FC<DefaulterNoticeModalProps> = ({
           </div>
 
           {/* Addressee Info */}
-          <div className="bg-slate-50 p-3.5 rounded border border-slate-300 font-sans text-xs space-y-1">
-            <p><strong>प्रति (ऋणी):</strong> {loan.borrowerName} (आत्मज/पत्नी: {loan.fatherOrHusbandName || '—'})</p>
-            <p><strong>सदस्यता क्रमांक:</strong> #{loan.membershipNo} | <strong>खाता क्रमांक:</strong> {loan.accountNo}</p>
-            <p><strong>निवास पता:</strong> {loan.address} | <strong>मोबाइल:</strong> {loan.phone}</p>
-            <div className="border-t border-slate-200 pt-1 mt-1 text-[11px] text-slate-700">
-              <p><strong>प्रतिलिपि साख जमानतदार 1:</strong> श्री {loan.guarantor1?.name} (चेक: {loan.guarantor1?.chequeNo}, मो: {loan.guarantor1?.phone})</p>
-              <p><strong>प्रतिलिपि साख जमानतदार 2:</strong> श्री {loan.guarantor2?.name} (चेक: {loan.guarantor2?.chequeNo}, मो: {loan.guarantor2?.phone})</p>
+          <div className="font-sans border-l-2 border-slate-800 pl-3 py-1 space-y-0.5 my-3">
+            <div className="font-bold text-slate-900">प्रति,</div>
+            <div className="font-bold">{loan.borrowerName}</div>
+            <div className="text-slate-600">पिता/पति: {loan.fatherOrHusbandName || '—'}</div>
+            <div className="text-slate-600">सदस्यता क्र.: #{loan.membershipNo} | खाता क्र.: {loan.accountNo}</div>
+            <div className="text-slate-600">पता: {loan.address}</div>
+            <div className="text-slate-600">मोबाइल: {loan.phone}</div>
+          </div>
+
+          {/* Guarantor Details */}
+          <div className="text-[11px] font-sans bg-slate-50 p-2.5 rounded border border-slate-200">
+            <span className="font-bold text-slate-800 block mb-1">प्रतिलिपि साख जमानतदार (Guarantors):</span>
+            <div className="grid grid-cols-2 gap-2 text-slate-700">
+              <div>
+                1. {loan.guarantor1?.name} ({loan.guarantor1?.relation || 'जमानतदार'}), मो.: {loan.guarantor1?.phone}
+                {loan.guarantor1?.chequeNo && <span className="block font-mono text-[10px] text-slate-500">चेक क्र.: {loan.guarantor1.chequeNo}</span>}
+              </div>
+              <div>
+                2. {loan.guarantor2?.name} ({loan.guarantor2?.relation || 'जमानतदार'}), मो.: {loan.guarantor2?.phone}
+                {loan.guarantor2?.chequeNo && <span className="block font-mono text-[10px] text-slate-500">चेक क्र.: {loan.guarantor2.chequeNo}</span>}
+              </div>
             </div>
           </div>
 
           {/* Subject */}
-          <div className="font-sans font-bold text-slate-900 text-xs border-y border-slate-200 py-1.5">
+          <div className="font-sans font-bold text-slate-900 border-b pb-1">
             विषय: स्वीकृत ऋण खाता अंतर्गत लगातार {defaulterInfo.consecutiveMissedCount} मासिक किश्तें बकाया होने एवं डिफ़ॉल्टर घोषित किए जाने बाबत।
           </div>
 
@@ -157,19 +188,27 @@ export const DefaulterNoticeModal: React.FC<DefaulterNoticeModalProps> = ({
             अन्यथा संस्था आपके द्वारा प्रदत्त अग्रिम चेक क्रमांक <strong>{loan.advanceChequeNo || 'सुरक्षा चेक'}</strong> एवं जमानतदारों के चेकों को बैंक में आहरण हेतु प्रस्तुत करने तथा सहकारिता अधिनियम के अंतर्गत कानूनी वसूली की कार्यवाही करने हेतु स्वतंत्र होगी, जिसका समस्त हर्जा-खर्चा आपकी जिम्मेदारी होगी।
           </p>
 
-          {/* Signatures */}
-          <div className="pt-12 grid grid-cols-2 gap-8 text-center font-sans font-semibold text-xs">
+          {/* Official Signatures (NO SEAL / MOHAR - Pure Official Signature Lines) */}
+          <div className="pt-8 grid grid-cols-2 gap-8 text-center font-sans font-semibold text-xs print-page-fit">
             <div>
-              <div className="h-10"></div>
-              <span className="border-t border-slate-500 pt-1 block">
+              <div className="h-8 border-b border-dotted border-slate-400 w-44 mx-auto mb-1"></div>
+              <span className="block font-bold text-slate-900">
                 वसूली अधिकारी / लेखापाल
+              </span>
+              <span className="text-[10px] text-slate-500 block">
+                {societyInfo.name}
               </span>
             </div>
             <div>
-              <div className="h-10"></div>
-              <span className="border-t border-slate-500 pt-1 block">
-                प्रबंधक / प्राधिकृत अधिकारी<br />
-                {SOCIETY_INFO.name}
+              <div className="h-8 border-b border-dotted border-slate-400 w-44 mx-auto mb-1"></div>
+              <span className="block font-bold text-slate-900">
+                ({manager.name})
+              </span>
+              <span className="block text-[11px] text-slate-700">
+                {manager.designationHindi || 'शाखा प्रबंधक'} / प्राधिकृत अधिकारी
+              </span>
+              <span className="text-[10px] text-slate-500 block">
+                {societyInfo.name}
               </span>
             </div>
           </div>

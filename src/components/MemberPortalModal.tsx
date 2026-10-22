@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   ChevronDown
 } from 'lucide-react';
+import { MemberLoanProgressGraph } from './MemberLoanProgressGraph';
 
 interface MemberPortalModalProps {
   onClose: () => void;
@@ -367,6 +368,9 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Member Loan Progress & Repayment Graph: इतना लिया था, इतना दिया, अब इतना बचा */}
+              <MemberLoanProgressGraph loan={selectedLoan} />
 
               {/* Installments History (Light Pinkish Table) */}
               <div>
